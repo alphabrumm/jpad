@@ -79,6 +79,7 @@ export class App {
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.applyTheme(this.getThemeChoice()));
 
         await this.store.open();
+        const linkMessage = await this.openFromLink();
         this.project = this.store.ensureCurrent();
 
         this.buildShell();
@@ -140,6 +141,8 @@ export class App {
         if (this.lernpfadHtml) this.setSideView("lernpfad");
         this.root.removeAttribute("aria-busy");
         this.root.querySelector(".jp-boot")?.remove();
+        if (linkMessage?.error) this.dialogs.alert({ title: "Lernpfad lässt sich nicht öffnen", text: linkMessage.error });
+        else if (linkMessage?.info) this.toast(linkMessage.info, "check", 5000);
 
         this.main.programControlButtons?.speedControl.setSpeedInStepsPerSecond(this.getSpeed());
 
@@ -989,6 +992,53 @@ export class App {
                 this.sideView = "output";
                 this.setView(this.view == "lernpfad" ? "output" : this.view);
             }
+        }
+    }
+
+    /**
+     * Link mit Lernpfad oder Projekt: jpad…/?lernpfad=<Adresse> bzw. ?projekt=<Adresse>
+     * (beides kombinierbar, Adressen auch relativ zu JPad). Beim ersten Aufruf entsteht ein neues
+     * Projekt; ruft man denselben Link erneut auf, öffnet sich dieses Projekt mit dem Stand des Schülers.
+     * Danach verschwindet der Parameter aus der Adresszeile, damit Neuladen nichts doppelt anlegt.
+     */
+    private async openFromLink(): Promise<{ error?: string, info?: string } | undefined> {
+        const params = new URLSearchParams(location.search);
+        const raw = { projekt: params.get("projekt"), lernpfad: params.get("lernpfad") };
+        if (!raw.projekt && !raw.lernpfad) return undefined;
+        const clean = () => {
+            params.delete("projekt");
+            params.delete("lernpfad");
+            const q = params.toString();
+            try { history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash); } catch (e) { }
+        };
+        try {
+            const abs = (u: string | null) => u ? new URL(u.trim(), location.href).href : null;
+            const projekt = abs(raw.projekt), lernpfad = abs(raw.lernpfad);
+            const source = [projekt, lernpfad].filter(s => s).join(" + ");
+            const existing = this.store.list().find(p => p.source == source);
+            if (existing) {
+                this.store.setCurrentId(existing.id);
+                clean();
+                return { info: `„${existing.name}“ geöffnet – mit deinem bisherigen Stand.` };
+            }
+            const boot = this.root.querySelector(".jp-boot");
+            if (boot) boot.textContent = "Lernpfad wird geladen …";
+            const { loadLinkedProject } = await import("./Lernpfad.js");
+            const linked = await loadLinkedProject(projekt, lernpfad);
+            const p = this.store.createInfo(linked.name);
+            this.store.update(p.id, { source });
+            await this.store.writeFiles(p.id, linked.files.length > 0 ? linked.files : STARTER_FILES);
+            if (linked.spritesheetBase64) {
+                try { await this.store.writeSpritesheet(p.id, base64ToBytes(linked.spritesheetBase64)); }
+                catch (e) { console.error("Spritesheet der Projektdatei ist beschädigt", e); }
+            }
+            if (linked.lernpfadHtml) await this.store.writeLernpfad(p.id, linked.lernpfadHtml);
+            this.store.setCurrentId(p.id);
+            clean();
+            return { info: `„${p.name}“ geöffnet.` + (linked.note ? " " + linked.note : "") };
+        } catch (e: any) {
+            clean();
+            return { error: e?.message || String(e) };
         }
     }
 
