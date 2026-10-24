@@ -227,3 +227,5 @@ GNU GPL v3, wie die Online-IDE.
 - Keine Schrift-Ligaturen in Code (Editor, Dialoge, Lernpfade): `<=` bleibt `<=` statt ≤.
 - Demo zusätzlich als `learn/demo/Lernpfad-Bello.zip` (HTML + Bilder); Lernpfade in learn/10 als HTML und als JPad-JSON.
 - Vogelflug-Lernpfad: Hinweis auf extends („Ein Vogel IST EIN Sprite“) und super (kommt später) vor dem Code der Klasse Vogel, kurz auch als Kommentar im Code.
+- Vogelflug: Station 9 „Ein Viereck am Himmel“ (nur Hinweise zu rotate/forward, Screenshot, Selbstkontrolle), Station 10 „Speichern und
+  abgeben“ (ByCS Drive, Code aller Dateien → Lernplattform, Tempo zurück), versteckte Bonus-Station 11 (erscheint erst nach Haken bei 10).
