@@ -63,3 +63,18 @@ export async function resolveJCode(code: string): Promise<{ path?: string, error
     } catch (e) { }
     return { error: "Die Liste der Lernprojekte ist gerade nicht erreichbar. Bist du online?" };
 }
+
+/** JCode zu einer Adresse, die auf eine Datei unter learn/<Klasse>/ zeigt (sonst null) */
+export function jcodeOfUrl(url: string | null | undefined): string | null {
+    const m = url?.match(/\/learn\/(\d{1,2}\/[^/?#\s]+\.(?:json|html))(?:[?#\s]|$)/);
+    return m ? jcodeOf(decodeURIComponent(m[1])) : null;
+}
+
+export type LearnEntry = { path: string, folder: string, code: string | null, title: string, kind: string };
+
+/** Liste aller Lernpfade/Projekte (learn/index.json, beim Bauen erzeugt) */
+export async function loadLearnIndex(): Promise<LearnEntry[]> {
+    const r = await fetch(new URL("learn/index.json", location.href), { cache: "no-store" });
+    if (!r.ok) throw new Error(`Die Liste der Lernpfade wurde nicht gefunden (Fehler ${r.status}).`);
+    return r.json();
+}

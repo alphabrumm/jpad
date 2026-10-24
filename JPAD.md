@@ -229,3 +229,7 @@ GNU GPL v3, wie die Online-IDE.
 - Vogelflug-Lernpfad: Hinweis auf extends („Ein Vogel IST EIN Sprite“) und super (kommt später) vor dem Code der Klasse Vogel, kurz auch als Kommentar im Code.
 - Vogelflug: Station 9 „Ein Viereck am Himmel“ (nur Hinweise zu rotate/forward, Screenshot, Selbstkontrolle), Station 10 „Speichern und
   abgeben“ (ByCS Drive, Code aller Dateien → Lernplattform, Tempo zurück), versteckte Bonus-Station 11 (erscheint erst nach Haken bei 10).
+- **Lehrkraft-Modus** `?lehrkraft`: Beim Start eine scrollbare Liste aller Lernpfade/Projekte unter learn/ (aus `learn/index.json`,
+  das postbuild mit Titel, Art und JCode erzeugt) – je Eintrag JCode, kopierbarer Link und „Öffnen“ (frische Kopie, `&neu=1`).
+  Gilt für den Tab (sessionStorage `jpad.lehrkraft`): Menüeintrag „Lehrkraft: alle Lernpfade“ und der JCode des geöffneten Projekts
+  fett neben dem Projektnamen (ProjectInfo.jcode, beim Öffnen per Link aus learn/<Klasse>/… berechnet). Schüler sehen davon nichts.

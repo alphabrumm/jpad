@@ -570,6 +570,60 @@ export class Dialogs {
      * JPadBlox: „Projekt über JCode öffnen“ – großes Eingabefeld für den Code. Beim Bestätigen wird der Code
      * aufgelöst (resolve); passt er nicht, bleibt der Dialog mit einer Meldung offen. Liefert den Pfad oder null.
      */
+    /**
+     * Lehrkraft-Modus (?lehrkraft): alle Lernpfade und Projekte unter learn/ mit JCode, Link zum Kopieren
+     * und Öffnen-Knopf. Liefert den Pfad unterhalb von learn/ (z. B. „10/JPad-Vogelflug.json“) oder null.
+     */
+    teacherList(entries: { path: string, folder: string, code: string | null, title: string, kind: string }[], base: string): Promise<string | null> {
+        const folders = [...new Set(entries.map(e => e.folder))].sort((a, b) => (/^\d+$/.test(b) ? 1 : 0) - (/^\d+$/.test(a) ? 1 : 0) || a.localeCompare(b));
+        const link = (e: { path: string }) => base + "?lernpfad=" + "learn/" + e.path;
+        const rows = folders.map(f => {
+            const items = entries.filter(e => e.folder == f)
+                // Projekte (mit Code) zuerst, dann Lernpfade, dann ZIPs; innerhalb nach Titel
+                .sort((a, b) => ["Projekt", "Lernpfad", "ZIP"].indexOf(a.kind) - ["Projekt", "Lernpfad", "ZIP"].indexOf(b.kind) || a.title.localeCompare(b.title));
+            return `<h3 class="jp-teach-folder">${/^\d+$/.test(f) ? "Klasse " + escapeHtml(f) : escapeHtml(f[0].toUpperCase() + f.slice(1))}</h3>
+                ${items.map(e => `<div class="jp-teach-row">
+                    <div class="jp-teach-head">
+                        <div class="jp-teach-title"><b>${escapeHtml(e.title || e.path.split("/").pop()!)}</b>
+                            <span class="jp-teach-kind">${escapeHtml(e.kind)} · ${escapeHtml(e.path.split("/").pop()!)}</span></div>
+                        ${e.code ? `<div class="jp-teach-code" title="JCode">${e.code}</div>` : ""}
+                    </div>
+                    <div class="jp-teach-actions">
+                        <input class="jp-teach-url" type="text" readonly value="${escapeHtml(link(e))}" aria-label="Link zu ${escapeHtml(e.title)}">
+                        <button type="button" class="jp-btn" data-copy="${escapeHtml(link(e))}">${icon("copy")}<span>Kopieren</span></button>
+                        <button type="button" class="jp-btn jp-btn-primary" data-open="${escapeHtml(e.path)}">Öffnen</button>
+                    </div>
+                </div>`).join("")}`;
+        }).join("");
+        return this.open(`
+            <h2 class="jp-sheet-title">Lernpfade und Projekte</h2>
+            <p class="jp-sheet-text">Lehrkraft-Modus: Mit „Öffnen“ lädst du eine frische Kopie. Der JCode steht dann oben neben dem Projektnamen, damit die Klasse ihn sehen kann.</p>
+            <div class="jp-sheet-content jp-teach-list">${rows || "<p>Noch keine Lernpfade auf dem Server.</p>"}</div>
+            <div class="jp-sheet-buttons"><button type="button" class="jp-btn" data-cancel>Schließen</button></div>`, (sheet, close) => {
+            sheet.classList.add("is-teacher");
+            sheet.addEventListener("click", async e => {
+                const t = <HTMLElement>e.target;
+                const open = t.closest<HTMLElement>("[data-open]");
+                if (open) { close(open.dataset.open); return; }
+                const copy = t.closest<HTMLElement>("[data-copy]");
+                if (copy) {
+                    let ok = false;
+                    try { await navigator.clipboard.writeText(copy.dataset.copy!); ok = true; } catch (err) { }
+                    if (!ok) {
+                        const input = copy.parentElement!.querySelector("input")!;
+                        input.focus(); input.select();
+                        try { ok = document.execCommand("copy"); } catch (err) { }
+                    }
+                    const label = copy.querySelector("span")!;
+                    label.textContent = ok ? "Kopiert" : "Markiert";
+                    setTimeout(() => label.textContent = "Kopieren", 1600);
+                }
+                const input = t.closest<HTMLInputElement>(".jp-teach-url");
+                if (input) input.select();
+            });
+        });
+    }
+
     jcode(o: {
         length: number,
         normalize: (s: string) => string,

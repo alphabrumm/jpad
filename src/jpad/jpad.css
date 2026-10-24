@@ -3239,3 +3239,27 @@ html.phone .jp-keybar-markextra { padding: 0 4px; }
 
 /* Keine Ligaturen in Code (JetBrains Mono macht sonst aus <= ein ≤) – auch in Dialogfeldern und Vorschauen */
 .cm-editor, .jp-app code, .jp-app pre, .jp-sheet code, .jp-sheet pre { font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }
+
+/* ===================================================================================
+   Lehrkraft-Modus (?lehrkraft): Liste der Lernpfade, JCode neben dem Projektnamen
+   =================================================================================== */
+.jp-sheet.is-teacher { max-width: 760px; width: min(760px, calc(100vw - 24px)); }
+.jp-sheet.is-teacher .jp-teach-list { max-height: min(62vh, 640px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+.jp-teach-folder { margin: 14px 0 6px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.jp-teach-folder:first-child { margin-top: 0; }
+.jp-teach-row { padding: 12px 14px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--surface); }
+.jp-teach-head { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.jp-teach-title { min-width: 0; display: grid; }
+.jp-teach-title b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-teach-kind { font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-teach-code { flex: none; font-family: var(--font-code); font-weight: 800; font-size: 22px; letter-spacing: .12em; padding: 2px 12px; border-radius: 8px; background: var(--marker); color: var(--marker-ink); }
+.jp-teach-actions { display: flex; gap: 8px; align-items: center; }
+.jp-teach-url { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink); font-family: var(--font-code); font-size: 13px; }
+.jp-teach-actions .jp-btn { flex: none; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; }
+.jp-teach-actions .jp-btn .jp-icon { width: 18px; height: 18px; }
+@media (max-width: 560px) { .jp-teach-actions { flex-wrap: wrap; } .jp-teach-url { flex-basis: 100%; } }
+.jp-jcode-badge { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 10px; border-radius: 8px; background: var(--marker); color: var(--marker-ink); font-size: 13px; white-space: nowrap; }
+.jp-jcode-badge b { font-family: var(--font-code); font-size: 20px; font-weight: 800; letter-spacing: .1em; }
+.jp-app[data-compact="true"] .jp-topbar .jp-jcode-badge { visibility: hidden; }
+html.phone .jp-jcode-badge span { display: none; }
+.jp-app:not([data-wide="true"]) .jp-jcode-badge span { display: none; }

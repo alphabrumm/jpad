@@ -21,6 +21,8 @@ export type ProjectInfo = {
     exported: number;
     /** Projekt kam über einen Link (?projekt=…/?lernpfad=…): derselbe Link öffnet es wieder */
     source?: string;
+    /** JCode der Datei unter learn/, aus der das Projekt stammt (für die Anzeige im Lehrkraft-Modus) */
+    jcode?: string;
 };
 
 export type ProjectFile = { name: string, text: string };

@@ -5,6 +5,7 @@ import { JPadMain } from "./JPadMain.js";
 import { TouchEditor } from "./TouchEditor.js";
 import { LanguageBridge, escapeHtml } from "./LanguageBridge.js";
 import { ProjectInfo, ProjectStore, STARTER_FILES, ProjectFile } from "./ProjectStore.js";
+import { jcodeOfUrl } from "./JCode.js";
 import { icon } from "./Icons.js";
 import { OwnNames, ownNames, declaredMembers } from "./CompletionOrder.js";
 import { Dialogs } from "./Dialogs.js";
@@ -116,9 +117,18 @@ export class App {
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.applyTheme(this.getThemeChoice()));
 
         await this.store.open();
+        // Lehrkraft-Modus (?lehrkraft): gilt für diesen Tab, Parameter verschwindet aus der Adresszeile
+        const startParams = new URLSearchParams(location.search);
+        const teacherStart = startParams.has("lehrkraft");
+        if (teacherStart) {
+            try { sessionStorage.setItem("jpad.lehrkraft", "1"); } catch (e) { }
+            startParams.delete("lehrkraft");
+            const q = startParams.toString();
+            try { history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash); } catch (e) { }
+        }
         // Allererster Start (noch kein Projekt, noch nie begrüßt): Demo-Lernpfad öffnen und Willkommen zeigen
         let firstRun = false;
-        try { firstRun = !localStorage.getItem("jpadblox.welcomed") && this.store.list().length == 0; } catch (e) { }
+        try { firstRun = !teacherStart && !localStorage.getItem("jpadblox.welcomed") && this.store.list().length == 0; } catch (e) { }
         let linkMessage = await this.openFromLink(firstRun && !/[?&](projekt|lernpfad)=/.test(location.search)
             ? { projekt: null, lernpfad: "learn/demo/Lernpfad-Bello.html" } : undefined);
         if (firstRun) linkMessage = linkMessage?.error ? linkMessage : undefined;   // statt „geöffnet“ kommt das Willkommen
@@ -234,6 +244,7 @@ export class App {
         if (firstRun) this.showWelcome();
         if (linkMessage?.error) this.dialogs.alert({ title: "Lernpfad lässt sich nicht öffnen", text: linkMessage.error });
         else if (linkMessage?.info) this.toast(linkMessage.info, "check", 5000);
+        if (teacherStart) this.openTeacherList();
 
         this.main.programControlButtons?.speedControl.setSpeedInStepsPerSecond(this.getSpeed());
 
@@ -281,6 +292,7 @@ export class App {
                 <span class="jp-project-name" data-ref="projectName"></span>
                 <span class="jp-project-state" data-ref="projectState"></span>
             </button>
+            <span class="jp-jcode-badge" data-ref="jcodeBadge" hidden></span>
             <div class="jp-topbar-spacer"></div>
             <div class="jp-bulbgroup" data-ref="bulbGroup">
                 <div class="jp-toolgroup jp-edit-tools" data-ref="editTools">
@@ -374,6 +386,7 @@ export class App {
                     <button data-ref="saveFileBtn" data-tip="Projekt als Datei sichern">${icon("save")}<span>Projekt als Datei sichern</span></button>
                 </div>
                 <div class="jp-menu-actions jp-menu-group">
+                    <button data-ref="teacherBtn" hidden data-tip="Lehrkraft: alle Lernpfade und Projekte mit JCode, Link und Öffnen-Knopf">${icon("jcode")}<span>Lehrkraft: alle Lernpfade</span></button>
                     <button data-ref="demoBtn" data-tip="Neues Projekt mit einer frischen Kopie des Demo-Lernpfads: JPad kennenlernen und die Klasse Hund bauen">${icon("lernpfad")}<span>Demo laden</span></button>
                     <button data-ref="lernpfadAddBtn" data-tip="Eine HTML-Seite oder ein ZIP (index.html mit Bildern) als Lernpfad in dieses Projekt einbetten">${icon("lernpfad")}<span>Lernpfad einbetten</span></button>
                     <button data-ref="lernpfadRemoveBtn" data-tip="Den eingebetteten Lernpfad aus diesem Projekt entfernen">${icon("trash")}<span>Lernpfad entfernen</span></button>
@@ -454,6 +467,8 @@ export class App {
         this.el.refactorBtn.addEventListener("click", () => this.renameDialog());
         this.el.demoBtn.addEventListener("click", () => this.openDemo());
         this.el.jcodeBtn.addEventListener("click", () => this.openJCode());
+        this.el.teacherBtn.hidden = !this.isTeacher;
+        this.el.teacherBtn.addEventListener("click", () => { this.closeDrawer(); this.openTeacherList(); });
         this.renderSkinButton();
 
         // Kopfzeilen-Knöpfe sollen dem Editor den Fokus nicht wegnehmen (sonst klappt die Tastatur zu)
@@ -659,7 +674,7 @@ export class App {
         const g = this.el.bulbGroup, bar = g.parentElement!;
         // Zugeklappt: Die Striche bleiben genau dort, wo die Knöpfe aufgeklappt standen
         // (die Bereiche darunter werden zugeklappt breiter, die Knöpfe sollen aber nicht wandern)
-        const key = [bar.clientWidth, this.el.runTools.offsetWidth, this.el.projectBtn.offsetWidth].join(",");
+        const key = [bar.clientWidth, this.el.runTools.offsetWidth, this.el.projectBtn.offsetWidth, this.el.jcodeBadge.offsetWidth].join(",");
         if (this.root.dataset.compact == "true") {
             if (this.alignedBarWidth == key) return;
             // Noch keine Werte für diese Breite: kurz aufgeklappt vermessen (ohne sichtbares Zwischenbild)
@@ -702,8 +717,11 @@ export class App {
         // Überschneidet sich die Gruppe mit dem Projektnamen oder den Knöpfen rechts davon: normal einreihen
         const gr = g.getBoundingClientRect();
         const proj = this.el.projectBtn.getBoundingClientRect();
+        // Im Lehrkraft-Modus steht rechts neben dem Projektnamen noch der JCode
+        const badge = this.el.jcodeBadge.hidden ? null : this.el.jcodeBadge.getBoundingClientRect();
+        const leftEnd = Math.max(proj.right, badge ? badge.right : 0);
         const run = this.el.runTools.getBoundingClientRect();
-        if (gr.left < proj.right + 4 || gr.right > run.left - 4) reset();
+        if (gr.left < leftEnd + 8 || gr.right > run.left - 4) reset();
         centerFold();
     }
 
@@ -1126,6 +1144,26 @@ export class App {
      * Menü „Demo-Projekt laden“: öffnet den Demo-Lernpfad (public/demo) wie einen Lernpfad-Link.
      * Gibt es das Demo-Projekt schon, öffnet sich dieses mit dem bisherigen Stand.
      */
+    get isTeacher(): boolean {
+        try { return sessionStorage.getItem("jpad.lehrkraft") == "1"; } catch (e) { return false; }
+    }
+
+    /** Lehrkraft-Modus: Liste aller Lernpfade/Projekte mit JCode, Link zum Kopieren und Öffnen-Knopf */
+    async openTeacherList() {
+        const { loadLearnIndex } = await import("./JCode.js");
+        let entries;
+        try { entries = await loadLearnIndex(); }
+        catch (e: any) { this.dialogs.alert({ title: "Lernpfade", text: e?.message || String(e) }); return; }
+        const base = new URL(".", location.href).href;
+        const path = await this.dialogs.teacherList(entries, base);
+        if (!path) return;
+        this.main.flush();
+        // Immer eine frische Kopie vom Server – so sieht die Klasse genau den aktuellen Stand
+        const url = new URL(location.href);
+        url.search = "?lernpfad=" + encodeURIComponent("learn/" + path) + "&neu=1";
+        location.href = url.href;
+    }
+
     /** Menü „Projekt über JCode öffnen“: Code eingeben, Datei unter learn/ suchen, wie ein Link öffnen */
     async openJCode() {
         this.main.flush();
@@ -1270,6 +1308,10 @@ export class App {
 
     renderProjectTitle() {
         this.el.projectName.textContent = this.project.name;
+        // Lehrkraft-Modus: JCode fett neben dem Projektnamen, damit die Klasse ihn vom Beamer abschreiben kann
+        const code = this.isTeacher ? this.store.list().find(p => p.id == this.project.id)?.jcode : undefined;
+        this.el.jcodeBadge.hidden = !code;
+        this.el.jcodeBadge.innerHTML = code ? `<span>JCode</span> <b>${code}</b>` : "";
         const unsaved = this.project.modified > this.project.exported;
         this.el.projectState.textContent = unsaved
             ? (this.project.exported == 0 ? "noch nie als Datei gesichert" : "Änderungen nicht als Datei gesichert")
@@ -1438,7 +1480,9 @@ export class App {
             const source = [projekt, lernpfad].filter(s => s).join(" + ");
             const fresh = params.get("neu") != null;
             const existing = fresh ? undefined : this.store.list().find(p => p.source == source);
+            const jcode = jcodeOfUrl(lernpfad) ?? jcodeOfUrl(projekt) ?? undefined;
             if (existing) {
+                if (jcode && existing.jcode != jcode) this.store.update(existing.id, { jcode });
                 this.store.setCurrentId(existing.id);
                 clean();
                 return { info: `„${existing.name}“ geöffnet – mit deinem bisherigen Stand.` };
@@ -1450,6 +1494,7 @@ export class App {
             const p = this.store.createInfo(linked.name);
             // Frisch geladene Demo-Kopien merken sich keine Quelle: jede ist ein eigenständiges Projekt
             if (!fresh) this.store.update(p.id, { source });
+            if (jcode) this.store.update(p.id, { jcode });
             await this.store.writeFiles(p.id, linked.files.length > 0 ? linked.files : STARTER_FILES);
             if (linked.spritesheetBase64) {
                 try { await this.store.writeSpritesheet(p.id, base64ToBytes(linked.spritesheetBase64)); }

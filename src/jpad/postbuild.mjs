@@ -1,5 +1,5 @@
 // Nach dem Build: Startseite, Server-Einstellungen, Aufräumen
-import { copyFileSync, writeFileSync, rmSync, readdirSync, existsSync } from "fs";
+import { copyFileSync, writeFileSync, rmSync, readdirSync, existsSync, readFileSync } from "fs";
 
 const out = "dist-jpad";
 copyFileSync(`${out}/jpad.html`, `${out}/index.html`);
@@ -48,6 +48,26 @@ for (let k = 9; k <= 13; k++) {
     for (const f of readdirSync(dir).sort()) if (/\.(json|html)$/.test(f)) codes[jcodeOf(`${k}/${f}`)] = `${k}/${f}`;
 }
 writeFileSync(`${out}/learn/jcodes.json`, JSON.stringify(codes, null, 1));
+
+// Übersicht für Lehrkräfte (?lehrkraft): alle Lernpfade und Projekte mit Titel und JCode
+const titleOf = file => {
+    try {
+        const text = readFileSync(file, "utf8");
+        if (file.endsWith(".json")) return JSON.parse(text).name || "";
+        const m = text.match(/<title>([^<]*)<\/title>/i);
+        return m ? m[1].trim() : "";
+    } catch (e) { return ""; }
+};
+const index = [];
+for (const dir of readdirSync(`${out}/learn`, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort()) {
+    for (const f of readdirSync(`${out}/learn/${dir}`).sort()) {
+        if (!/\.(json|html|zip)$/.test(f)) continue;
+        const rel = `${dir}/${f}`;
+        index.push({ path: rel, folder: dir, code: /^\d+$/.test(dir) && !f.endsWith(".zip") ? jcodeOf(rel) : null,
+            title: f.endsWith(".zip") ? "" : titleOf(`${out}/learn/${rel}`), kind: f.endsWith(".json") ? "Projekt" : f.endsWith(".zip") ? "ZIP" : "Lernpfad" });
+    }
+}
+writeFileSync(`${out}/learn/index.json`, JSON.stringify(index, null, 1));
 console.log("JCodes:", Object.entries(codes).map(([c, f]) => `${c} ${f}`).join(", "));
 
 for (const f of ["maintenance", "includeIDE.js"]) rmSync(`${out}/${f}`, { recursive: true, force: true });
