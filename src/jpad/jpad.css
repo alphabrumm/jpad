@@ -215,14 +215,14 @@ button:focus-visible, input:focus-visible, a:focus-visible {
     :root[data-effective="dark"] .jp-bulb:hover { background: var(--marker-soft); filter: none; }
 }
 /* iPhone: zu wenig Platz in der Kopfzeile */
-html.phone .jp-bulbgroup { display: none; }
+html.phone .jp-topbar .jp-bulb, html.phone .jp-bulbgroup .jp-topbar-sep { display: none; }
 
-/* Glühbirne + Trennstrich: im Hochformat links neben den Kopier-Knöpfen,
-   im Querformat (per Skript) rechtsbündig über dem Code-Editor */
+/* Bearbeiten-Knöpfe + Trennstrich: im Hochformat einfach links neben der Glühbirne,
+   im Querformat (per Skript) rechtsbündig über dem Code-Editor; rechts daneben Glühbirne und Ausführen */
 .jp-topbar { position: relative; }
 .jp-bulbgroup { display: flex; align-items: center; flex: none; }
 .jp-bulbgroup.is-aligned { position: absolute; top: 50%; transform: translateY(-50%); }
-.jp-topbar-sep { flex: none; width: 1px; height: 22px; margin: 0 0 0 6px; background: var(--line); } /* rechts folgt der Abstand der Kopfzeile */
+.jp-topbar-sep { flex: none; width: 1px; height: 22px; margin: 0 6px; background: var(--line); }
 .jp-topbar .jp-bulb { width: 38px; } /* gegen die schmale Breite von .jp-iconbtn */
 
 /* Hilfe beim langen Drücken auf einen Button und Hinweis der Glühbirne (wie in QPad):
@@ -755,8 +755,13 @@ li[aria-selected] .cm-completionDetail { color: inherit; opacity: 0.85; }
 .jp-bottomnav button[aria-current="true"] { color: var(--accent); font-weight: 700; }
 .jp-bottomnav .jp-badge { position: absolute; top: 6px; left: calc(50% + 6px); }
 
-/* Mit offener Tastatur zählt jeder Pixel: Navigation ausblenden */
-html.keyboard-open.editor-focused .jp-bottomnav { display: none; }
+/* Mit offener Tastatur: auf dem Handy zählt jeder Pixel (Navigation ausblenden), auf dem iPad bleibt sie
+   sichtbar, aber flacher (Symbol und Text nebeneinander) */
+html.phone.keyboard-open.editor-focused .jp-bottomnav { display: none; }
+html:not(.phone).keyboard-open .jp-app[data-layout="tabs"] .jp-bottomnav,
+html.tablet:not(.phone).keyboard-open .jp-app[data-layout="tabs"][data-view] .jp-bottomnav { height: 42px; padding-bottom: 0; }
+html:not(.phone).keyboard-open .jp-bottomnav button { flex-direction: row; gap: 6px; }
+html:not(.phone).keyboard-open .jp-bottomnav .jp-badge { top: 4px; }
 
 /* ---------- Tastatur-Hilfsleiste ---------- */
 
@@ -880,8 +885,11 @@ html.keyboard-open.editor-focused .jp-bottomnav { display: none; }
     font-size: 15px;
     font-weight: 700;
     color: var(--ink-2);
-    margin: 22px 0 8px;
+    margin: 34px 0 8px;
 }
+.jp-drawer h2:first-child { margin-top: 18px; }
+/* Abstand zwischen Gruppen innerhalb einer Kategorie */
+.jp-drawer .jp-menu-group { margin-top: 14px; }
 
 .jp-menu-actions { display: flex; flex-direction: column; gap: 2px; }
 
@@ -921,9 +929,9 @@ html.keyboard-open.editor-focused .jp-bottomnav { display: none; }
 
 .jp-projectitem-open > span { display: flex; flex-direction: column; min-width: 0; }
 .jp-projectitem.is-current .jp-icon { color: var(--accent); }
-.jp-projectitem-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-projectitem-name { font-weight: 700; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; overflow-wrap: anywhere; }
 .jp-projectitem-date { font-size: 13px; color: var(--ink-2); }
-.jp-projectitem-del { color: var(--ink-2); }
+.jp-projectitem-del, .jp-projectitem-dup { color: var(--ink-2); }
 
 .jp-setting-row {
     display: flex;
@@ -1022,6 +1030,24 @@ html.keyboard-open.editor-focused .jp-bottomnav { display: none; }
 }
 
 .jp-field input:focus { border-color: var(--accent); outline: none; }
+/* JPadBlox: Auswahl des Datentyps (Attribut/Variable) */
+.jp-field select {
+    font: inherit;
+    font-size: 17px;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-radius: var(--radius-m);
+    padding: 12px 14px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%), linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+}
+.jp-field select:focus { border-color: var(--accent); outline: none; }
+.jp-form .jp-field + .jp-field { margin-top: 14px; }
 .jp-field-error { color: var(--danger); font-size: 14px; min-height: 1.2em; margin: 6px 0 0; }
 
 .jp-action-list { display: flex; flex-direction: column; gap: 2px; }
@@ -1770,4 +1796,1446 @@ html.kb-simple.tablet .jp-app {
 html.kb-simple.tablet:not(.keyboard-open) .jp-app { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
 html.kb-simple.tablet .jp-app[data-layout="tabs"]:not([data-view="code"]) { padding-bottom: 0; }
 html.kb-simple.tablet .jp-keybar { position: absolute; bottom: 0; }
+
+/* ---------- JPadBlox: Bausteine in der Hilfsleiste ----------
+   Die Leiste zeigt entweder Sonderzeichen oder Bausteine; der Knopf ganz links schaltet um.
+   Farben je Gruppe wie bei Blockprogrammierung: Klassen blau, Ablauf orange, Daten grün, Mehr lila. */
+.jp-keybar[data-mode="blocks"] .jp-keybar-scroll:not(.jp-blocks-scroll) { display: none; }
+.jp-keybar[data-mode="chars"] .jp-blocks-scroll { display: none; }
+.jp-keybar[data-mode="blocks"] .jp-mode-blocks { display: none; }
+.jp-keybar[data-mode="chars"] .jp-mode-chars { display: none; }
+.jp-keybar .jp-key-mode { color: var(--accent); }
+.jp-keybar .jp-mode-chars { font-family: var(--font-code); font-weight: 700; }
+
+.jp-blocks-scroll { align-items: stretch; }
+.jp-block-group {
+    flex: none;
+    align-self: center;
+    margin: 0 2px 0 8px;
+    font-family: var(--font-ui, system-ui);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--g);
+    padding-left: 8px;
+    border-left: 1px solid color-mix(in srgb, var(--ink-2) 35%, transparent);
+}
+.jp-block-group:first-child { margin-left: 0; padding-left: 0; border-left: 0; }
+.jp-keybar button.jp-block {
+    --g-bg: color-mix(in srgb, var(--g) 14%, var(--surface));
+    background: var(--g-bg);
+    border-left: 4px solid var(--g);
+    padding: 0 12px 0 10px;
+    font-size: 16px;
+    white-space: nowrap;
+}
+.jp-keybar button.jp-block:active,
+.jp-keybar button.jp-block.is-pressed { background: var(--g); color: #fff; }
+/* Die Randfarbe ist zugleich die Schriftfarbe der Bausteine
+   (im hellen Modus etwas dunkler, damit die Schrift gut lesbar bleibt). */
+/* Klassen: Akzent-Blau von JPad (wie der Plus-Knopf), Ablauf: Orange, Daten: Grün */
+[data-group="klasse"] { --g: var(--accent); }
+[data-group="ablauf"] { --g: #D2700A; }
+[data-group="daten"]  { --g: #5F9EA0; }  /* cadetblue */
+:root[data-effective="dark"] [data-group="klasse"] { --g: var(--accent); }
+:root[data-effective="dark"] [data-group="ablauf"] { --g: #F59E3A; }
+:root[data-effective="dark"] [data-group="daten"]  { --g: #5F9EA0; }
+.jp-keybar button.jp-block, .jp-blockpanel button.jp-block { color: var(--g); }
+.jp-keybar button.jp-block:active, .jp-keybar button.jp-block.is-pressed,
+.jp-blockpanel button.jp-block:active, .jp-blockpanel button.jp-block.is-pressed { color: var(--surface); }
+
+/* Platzhalter eines eingefügten Bausteins */
+.jp-editor .cm-snippetField {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-radius: 3px;
+    box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ---------- JPadBlox: drei Spalten im Querformat ----------
+   Bausteine | Editor | Ansicht rechts. Aufteilung je nach Vergrößern-Knopf (siehe App.applyLayout). */
+.jp-pane-blocks { display: none; }
+.jp-app[data-layout="split"] .jp-pane-blocks { display: flex; }
+/* iPad hochkant: Bausteine links neben dem Editor, gehören zur Ansicht „Code“ (nicht auf dem Handy,
+   nicht bei „Editor auf volle Breite“) */
+@media (min-width: 600px) {
+    html:not(.phone) .jp-app[data-layout="tabs"][data-view="code"]:not([data-cols="full"]) .jp-pane-blocks { display: flex; }
+    html:not(.phone) .jp-app[data-layout="tabs"][data-view="code"]:not([data-cols="full"]) .jp-main { grid-template-columns: auto minmax(0, 1fr); }
+    html:not(.phone) .jp-app[data-layout="tabs"][data-view="code"][data-bwide="true"]:not([data-cols="full"]) .jp-main { grid-template-columns: minmax(0, 30fr) minmax(0, 70fr); }
+    html:not(.phone) .jp-app[data-layout="tabs"][data-bwide="false"] .jp-pane-blocks { width: max-content; max-width: 30vw; }
+    /* Bausteine stehen links: Hilfsleiste wie im Querformat (nur Zeichen, ohne Umschalter) */
+    html:not(.phone) .jp-app[data-layout="tabs"]:not([data-cols="full"]) .jp-keybar .jp-key-mode { display: none; }
+    html:not(.phone) .jp-app[data-layout="tabs"]:not([data-cols="full"]) .jp-keybar .jp-blocks-scroll { display: none; }
+    html:not(.phone) .jp-app[data-layout="tabs"]:not([data-cols="full"]) .jp-keybar .jp-keybar-scroll:not(.jp-blocks-scroll) { display: flex; }
+}
+.jp-app[data-layout="split"][data-cols="default"] .jp-main { grid-template-columns: auto minmax(0, 1fr) 20%; }
+.jp-app[data-layout="split"][data-cols="blocks"] .jp-main { grid-template-columns: minmax(0, 25fr) minmax(0, 55fr) minmax(0, 20fr); }
+/* Editor vergrößert: Ansicht rechts weg, Bausteine behalten ihre Breite */
+.jp-app[data-layout="split"][data-cols="edit-n"] .jp-main { grid-template-columns: auto minmax(0, 1fr); }
+.jp-app[data-layout="split"][data-cols="edit-w"] .jp-main { grid-template-columns: minmax(0, 25fr) minmax(0, 75fr); }
+.jp-app[data-layout="split"]:is([data-cols="edit-n"], [data-cols="edit-w"]) .jp-pane-side { display: none; }
+/* Ansicht rechts vergrößert: doppelt so breit, Bausteine schmal; volle Breite: nur die Ansicht rechts */
+/* Ansicht rechts vergrößert: genauso breit wie der Editor */
+.jp-app[data-layout="split"][data-cols="info"] .jp-main { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); }
+.jp-app[data-layout="split"][data-cols="infofull"] .jp-main { grid-template-columns: minmax(0, 1fr); }
+.jp-app[data-layout="split"][data-cols="infofull"] :is(.jp-pane-blocks, .jp-pane-code) { display: none; }
+.jp-layoutbtn[hidden] { display: none !important; }
+
+/* Kopfzeilen von Bausteinen und Ansicht rechts, mit Vergrößern-Knopf rechts */
+.jp-panehead {
+    display: flex;
+    align-items: center;
+    min-height: 49px;
+    padding-left: 12px;
+    border-bottom: 1px solid var(--line);
+    flex: none;
+}
+.jp-panehead-title { flex: 1; min-width: 0; font-weight: 700; color: var(--ink-2); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-panehead .jp-layoutbtn, .jp-sidehead .jp-layoutbtn { margin: 0 4px 0 2px; }
+.jp-sidehead { display: flex; align-items: center; flex: none; min-width: 0; }
+.jp-sidehead .jp-side-switch { flex: 1; min-width: 0; margin-right: 0; }
+.jp-app[data-layout="tabs"] .jp-sidehead { display: none; }
+
+/* Senkrechte Bausteinleiste */
+.jp-blockpanel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 6px 8px 12px;
+}
+.jp-blockgroup h3 {
+    margin: 10px 2px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--g);
+}
+.jp-blockgroup:first-child h3 { margin-top: 4px; }
+.jp-blockgroup-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.jp-blockpanel button.jp-block {
+    flex: 1 1 auto;
+    min-height: 40px;
+    padding: 0 10px 0 8px;
+    border-radius: var(--radius-s);
+    background: color-mix(in srgb, var(--g) 14%, var(--surface));
+    border-left: 4px solid var(--g);
+    font-family: var(--font-code);
+    font-size: 15px;
+    font-weight: 400;
+    text-align: left;
+    white-space: nowrap;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+.jp-blockpanel button.jp-block:active,
+.jp-blockpanel button.jp-block.is-pressed { background: var(--g); color: #fff; }
+
+/* Querformat: Hilfsleiste wie in JPad (nur Zeichen), die Bausteine stehen links */
+.jp-app[data-layout="split"] .jp-keybar .jp-key-mode { display: none; }
+.jp-app[data-layout="split"] .jp-keybar .jp-blocks-scroll { display: none; }
+.jp-app[data-layout="split"] .jp-keybar .jp-keybar-scroll:not(.jp-blocks-scroll) { display: flex; }
+
+/* JPadBlox: Umschalter der Ansicht rechts – Symbol über dem Namen (wie die Navigation unten auf dem Handy) */
+.jp-side-switch button {
+    flex-direction: column;
+    gap: 2px;
+    min-height: 52px;
+    padding: 4px 2px;
+    font-size: 12px;
+    line-height: 1.1;
+    min-width: 0;
+    position: relative;
+}
+.jp-side-switch button span:not(.jp-badge) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-side-switch .jp-badge { position: absolute; top: 3px; left: calc(50% + 6px); }
+
+/* JPadBlox: Dialoge für Getter/Setter (Häkchen) und neue Methode (Parameterzeilen) */
+.jp-checklist { display: flex; flex-direction: column; gap: 2px; max-height: 50vh; overflow-y: auto; }
+.jp-check {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 48px; padding: 0 10px; border-radius: var(--radius-m);
+    color: var(--ink); font-size: 17px;
+}
+.jp-check:active { background: var(--surface-2); }
+.jp-check input { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+.jp-check-label { flex: 1; min-width: 0; font-family: var(--font-code); font-size: 16px; }
+.jp-check-note { font-size: 13px; color: var(--ink-2); }
+.jp-param-rows { display: flex; flex-direction: column; gap: 8px; }
+.jp-param-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.jp-field .jp-param-row input {
+    font: inherit; font-size: 17px; color: var(--ink); background: var(--bg);
+    border: 1.5px solid var(--line); border-radius: var(--radius-m); padding: 12px 14px; min-width: 0;
+}
+.jp-field .jp-param-row input::placeholder { color: var(--ink-2); opacity: .7; }
+.jp-field .jp-param-row input:focus { border-color: var(--accent); outline: none; }
+.jp-param-row select { min-width: 0; }
+.jp-btn.jp-btn-small { align-self: flex-start; min-height: 36px; padding: 0 12px; font-size: 14px; margin-top: 4px; }
+
+/* JPadBlox: „Mehr Blöcke…“ – eingeklappte Kategorie ganz unten in der Bausteinleiste */
+.jp-blockgroup-more { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 4px; }
+.jp-more-toggle {
+    display: flex; align-items: center; gap: 6px; width: 100%;
+    min-height: 40px; padding: 0 2px;
+    font-size: 13px; font-weight: 700; color: var(--ink-2); text-align: left;
+}
+.jp-more-chevron { display: inline-block; width: 12px; font-size: 18px; line-height: 1; transition: transform .15s; }
+.jp-blockgroup-more[data-open="true"] .jp-more-chevron { transform: rotate(90deg); }
+.jp-blockgroup-more[data-open="false"] .jp-blockgroup-items { display: none; }
+.jp-block-group-more { color: var(--ink-2); }
+
+/* JPadBlox: dezente Farben in der Hilfsleiste – Cursortasten blau wie „+“ der Dateireiter,
+   Plus beim Zeile-Einfügen grün wie die Kategorie „Daten“, Minus beim Zeile-Löschen rot wie die Fehlerzahl */
+.jp-keybar .jp-key-nav { color: var(--accent); }
+.jp-keybar .jp-key-line .jp-ic-plus { stroke: #0B7F57; }
+:root[data-effective="dark"] .jp-keybar .jp-key-line .jp-ic-plus { stroke: #34C68F; }
+.jp-keybar .jp-key-line .jp-ic-minus { stroke: var(--danger); }
+.jp-keybar .jp-key-nav:active, .jp-keybar .jp-key-nav.is-pressed,
+.jp-keybar .jp-key-line:active .jp-icon path, .jp-keybar .jp-key-line.is-pressed .jp-icon path { stroke: var(--accent-ink); }
+
+/* ---------- JPadBlox: Farbgebung der Bausteine ----------
+   „solid“ (Standard): Füllung in der Gruppenfarbe, Schrift und linker Rand in der hellen Tönung.
+   „tint“ (bis 21.10.2026): helle Tönung als Füllung, Schrift und linker Rand in der Gruppenfarbe.
+   Umschalten: BLOCK_COLORS in Blocks.ts. Die Regeln für „tint“ stehen weiter oben und gelten ohne Zusatz. */
+:root[data-block-colors="solid"] .jp-keybar button.jp-block,
+:root[data-block-colors="solid"] .jp-blockpanel button.jp-block {
+    background: var(--g);
+    color: color-mix(in srgb, var(--g) 14%, var(--surface));
+    border-left-color: color-mix(in srgb, var(--g) 14%, var(--surface));
+}
+:root[data-block-colors="solid"] .jp-keybar button.jp-block:active,
+:root[data-block-colors="solid"] .jp-keybar button.jp-block.is-pressed,
+:root[data-block-colors="solid"] .jp-blockpanel button.jp-block:active,
+:root[data-block-colors="solid"] .jp-blockpanel button.jp-block.is-pressed {
+    background: color-mix(in srgb, var(--g) 14%, var(--surface));
+    color: var(--g);
+    border-left-color: var(--g);
+}
+
+/* JPadBlox: Zeile einfügen/löschen – Plus und Minus kräftig, die angedeuteten Zeilen in dunklem Grau */
+.jp-keybar .jp-key-line .jp-ic-plus, .jp-keybar .jp-key-line .jp-ic-minus { stroke-width: 3.2; }
+.jp-keybar .jp-key-line .jp-icon path:not(.jp-ic-plus):not(.jp-ic-minus) { stroke: color-mix(in srgb, var(--ink) 60%, var(--surface)); }
+
+/* ---------- JPadBlox: Bausteine im Stil der Umschalter „Ausgabe / Variablen / Diagramm“ ----------
+   Nur aktiv mit data-block-style="segment" (BLOCK_STYLE in Blocks.ts); "classic" ist der frühere Stil.
+   Jeder Baustein sieht aus wie der ausgewählte Umschalter (Fläche --surface, leichter Schatten,
+   Rundung 9px, fette Oberflächenschrift); die Schrift hat die Farbe der Kategorie-Überschrift.
+   Die Bausteine einer Kategorie liegen wie die Umschalter auf einer Fläche in --surface-2. */
+:root[data-block-style="segment"] .jp-blockpanel .jp-blockgroup-items {
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-m);
+}
+:root[data-block-style="segment"] :is(.jp-blockpanel, .jp-keybar) button.jp-block {
+    border-left: 0;
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--g);
+    font-family: var(--font-ui);
+    font-size: 15px;
+    font-weight: 400;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    padding: 0 12px;
+    min-height: 38px;
+    transition: transform .08s ease, background-color .08s ease;
+}
+:root[data-block-style="segment"] .jp-blockpanel button.jp-block { text-align: center; }
+:root[data-block-style="segment"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:is(:active, .is-pressed) {
+    background: color-mix(in srgb, var(--g) 14%, var(--surface));
+    color: var(--g);
+    transform: scale(.97);
+}
+
+/* JPadBlox: schmale Bausteinleiste – alle Bausteine gleich breit untereinander */
+.jp-app[data-bwide="false"] .jp-blockpanel .jp-blockgroup-items { flex-direction: column; flex-wrap: nowrap; }
+.jp-app[data-bwide="false"] .jp-blockpanel button.jp-block { flex: none; width: 100%; }
+
+/* JPadBlox: Umschalter Bausteine ⇄ Zeichen in der Hilfsleiste – auffällig wie die Glühbirne
+   (hell: gelb gefüllt, Symbol dunkel; dunkel: ohne Füllung, Symbol gelb) */
+.jp-keybar button.jp-key-mode {
+    background: var(--marker);
+    color: var(--marker-ink);
+    box-shadow: inset 0 0 0 1.5px var(--marker);
+}
+.jp-keybar button.jp-key-mode:active, .jp-keybar button.jp-key-mode.is-pressed { background: var(--marker); color: var(--marker-ink); filter: brightness(0.94); }
+:root[data-effective="dark"] .jp-keybar button.jp-key-mode { background: transparent; box-shadow: none; color: var(--marker); }
+:root[data-effective="dark"] .jp-keybar button.jp-key-mode:active,
+:root[data-effective="dark"] .jp-keybar button.jp-key-mode.is-pressed { background: var(--marker-soft); color: var(--marker); filter: none; }
+
+/* JPadBlox: Dialog „Baue Deine neue Methode“ – links die Eingabe, rechts die animierte Skizze */
+.jp-sheet.is-method { max-width: 980px; }
+.jp-method-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 0; align-items: center; }
+.jp-method-input { padding-right: 24px; }
+.jp-method-anim { padding-left: 24px; border-left: 1px solid var(--line); align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
+@media (max-width: 760px) {
+    .jp-method-split { grid-template-columns: minmax(0, 1fr); }
+    .jp-method-input { padding-right: 0; }
+    .jp-method-anim { padding-left: 0; padding-top: 16px; margin-top: 8px; border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* JPadBlox: Skizze im Methoden-Dialog ein-/ausblenden */
+.jp-method-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.jp-method-head .jp-sheet-title { margin-right: auto; }
+.jp-method-toggle { flex: none; margin-top: 0; white-space: nowrap; }
+.jp-sheet.is-method.sketch-hidden { max-width: 560px; }
+.jp-sheet.is-method.sketch-hidden .jp-method-split { grid-template-columns: minmax(0, 1fr); }
+.jp-sheet.is-method.sketch-hidden .jp-method-input { padding-right: 0; }
+.jp-sheet.is-method.sketch-hidden .jp-method-anim { display: none; }
+
+/* ---------- JPadBlox: Werkstätten aus den Lernpfaden in den großen Bausteinhilfen ----------
+   Übernommen aus „Erste Schritte mit JPad“ und „Der Schaf-Konstruktor“, Farben an JPad angepasst. */
+.jp-lab {
+    --kw: var(--syn-keyword); --ty: var(--syn-type); --str: var(--syn-string); --fn: var(--syn-method);
+    --num: var(--syn-number); --com: var(--syn-comment);
+    --next: #ffe7a0; --next-edge: #e3ab1f; --dawn: #5457c4; --dawn-soft: #e4e4fa; --meadow: #2f8a4a;
+    --ghost: #f3ece8; --wool-weiss: #f9f5ec; --wool-schwarz: #34303a; --wool-braun: #8d4f2c; --face: #3b3434;
+    margin: 10px 6px 4px 0;
+    border: 1.5px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.45;
+}
+:root[data-effective="dark"] .jp-lab {
+    --next: #4a3c17; --dawn: #a8abff; --dawn-soft: #2b2a5a; --meadow: #6fd08b;
+    --ghost: #33294f; --wool-weiss: #efe9df; --wool-schwarz: #121014; --wool-braun: #a5603a; --face: #2a2424;
+}
+.jp-lab code { font-family: var(--font-code); font-size: .9em; background: var(--surface-2); border-radius: 5px; padding: 1px 4px; }
+.jp-lab .t-kw { color: var(--kw); font-weight: 600; }
+.jp-lab .t-ty { color: var(--ty); }
+.jp-lab .t-str { color: var(--str); }
+.jp-lab .t-fn { color: var(--fn); }
+.jp-lab .t-num { color: var(--num); }
+.jp-lab .t-com { color: var(--com); font-style: italic; }
+
+/* Schaf-Fabrik */
+.jp-lab .factory-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); }
+.jp-lab .factory-code { border-right: 1px solid var(--line); min-width: 0; }
+.jp-lab .factory-code pre, .jp-lab .lab-code pre { margin: 0; padding: 8px 0; font-family: var(--font-code); font-size: 12.5px; line-height: 1.7; overflow-x: auto; }
+.jp-lab .ln { display: block; white-space: pre; padding-right: 10px; border-left: 4px solid transparent; transition: background .2s; }
+.jp-lab .ln::before { content: attr(data-n); display: inline-block; width: 2.2em; padding-right: .8em; text-align: right; color: var(--com); }
+.jp-lab .ln.is-next { background: var(--next); border-left-color: var(--next-edge); }
+.jp-lab .ln.is-done::before { content: "✓"; color: var(--meadow); }
+.jp-lab .field { padding: 10px; min-width: 0; }
+.jp-lab .blueprints { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.jp-lab .uml { border: 1.5px solid var(--ty); background: var(--surface); font-family: var(--font-code); font-size: 11.5px; line-height: 1.45; }
+.jp-lab .uml .uml-name { background: color-mix(in srgb, var(--ty) 14%, var(--surface)); color: var(--ty); text-align: center; font-weight: 600; padding: 2px 8px; border-bottom: 1.5px solid var(--ty); }
+.jp-lab .uml .uml-sec { padding: 2px 8px; }
+.jp-lab .uml .uml-sec + .uml-sec { border-top: 1.5px solid var(--ty); }
+.jp-lab .uml.is-pulse { animation: jp-lab-pulse .6s ease-out; }
+@keyframes jp-lab-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ty) 60%, transparent); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.jp-lab .blueprint-label { font-size: 11px; font-weight: 700; color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 3px; }
+
+/* Weide, Schafe, Objektkarten */
+.jp-lab .pasture { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; min-height: 120px; }
+.jp-lab .pasture-empty { color: var(--ink-2); font-size: 13px; padding: 20px 8px; text-align: center; border: 2px dashed var(--line); border-radius: 12px; width: 100%; }
+.jp-lab .critter { display: grid; justify-items: center; gap: 4px; width: 158px; max-width: 100%; position: relative; }
+.jp-lab .critter svg { width: 96px; height: 77px; overflow: visible; }
+.jp-lab .critter.is-new svg { animation: jp-lab-pop .7s cubic-bezier(.3,1.6,.5,1); transform-origin: 50% 90%; }
+@keyframes jp-lab-pop { 0% { transform: translateY(-40px) scale(.2); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; } }
+.jp-lab .sheep .wool { transition: fill .5s; }
+.jp-lab .sheep .wool.is-ghost { fill: var(--ghost); stroke: var(--ink-2); stroke-dasharray: 4 3; stroke-width: 1.5; }
+.jp-lab .sheep .legs rect, .jp-lab .sheep .head { fill: var(--face); }
+.jp-lab .sheep .eye { fill: #fff; }
+.jp-lab .nametag { font-weight: 700; font-size: 13px; }
+.jp-lab .nametag.is-empty { font-weight: 400; color: var(--ink-2); font-size: 12px; }
+.jp-lab .obj { width: 100%; border: 1.5px solid var(--ink-2); border-radius: 9px; background: var(--surface); font-family: var(--font-code); font-size: 10.5px; line-height: 1.45; overflow: hidden; }
+.jp-lab .obj-name { text-align: center; padding: 2px 6px; border-bottom: 1.5px solid var(--ink-2); background: var(--surface-2); text-decoration: underline; text-underline-offset: 2px; color: var(--ty); font-weight: 600; }
+.jp-lab .obj-attrs { padding: 3px 6px; }
+.jp-lab .obj-attrs div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 4px; }
+.jp-lab .obj-attrs .v { color: var(--str); }
+.jp-lab .obj-attrs .v.is-null { color: var(--ink-2); font-style: italic; }
+.jp-lab .is-flash { animation: jp-lab-flash 1.1s ease-out; }
+@keyframes jp-lab-flash { 0% { background: var(--next); } 100% { background: transparent; } }
+
+/* Schritt-Werkstatt (Parameter, Konstruktor) */
+.jp-lab .lab-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.jp-lab .lab-code { border-right: 1px solid var(--line); min-width: 0; padding: 4px 0; }
+.jp-lab .lab-code .fn { font-family: var(--font-code); font-size: 11.5px; color: var(--ink-2); padding: 4px 12px 0; }
+.jp-lab .lab-stage { min-width: 0; padding: 10px; }
+.jp-lab .params { display: flex; flex-wrap: wrap; gap: 6px; min-height: 42px; margin-bottom: 10px; padding: 6px; border: 2px dashed var(--line); border-radius: 10px; }
+.jp-lab .params-empty { color: var(--ink-2); font-size: 12.5px; align-self: center; }
+.jp-lab .pbox { font-family: var(--font-code); font-size: 11.5px; border: 2px solid var(--dawn); border-radius: 8px; background: var(--dawn-soft); padding: 2px 7px; }
+.jp-lab .pbox .pn { color: var(--dawn); font-weight: 600; }
+.jp-lab .pbox .pv { color: var(--str); }
+.jp-lab .pbox.is-new { animation: jp-lab-drop .6s cubic-bezier(.3,1.5,.5,1); }
+.jp-lab .pbox.is-gone { opacity: .35; text-decoration: line-through; }
+@keyframes jp-lab-drop { 0% { transform: translateY(-30px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+
+/* Bedienleiste */
+.jp-lab .lab-bar { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--line); background: var(--surface-2); flex-wrap: wrap; }
+.jp-lab .fbtn { min-height: 38px; padding: 0 12px; border-radius: 9px; border: 2px solid var(--line); background: var(--surface); font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+.jp-lab .fbtn.primary { background: var(--next); border-color: var(--next-edge); }
+.jp-lab .fbtn:disabled { opacity: .45; }
+.jp-lab .lab-say { flex: 1 1 220px; min-width: 0; font-size: 13.5px; line-height: 1.45; }
+
+/* Stille Bilder (Attribute, Array) */
+.jp-lab.still { padding: 10px; }
+.jp-lab .still-say { margin: 8px 2px 0; font-size: 13.5px; }
+.jp-lab .arr { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.jp-lab .arr-owner { display: grid; justify-items: center; gap: 4px; width: 130px; }
+.jp-lab .arr-owner svg { width: 96px; height: 77px; }
+.jp-lab .arr-body { flex: 1; min-width: 260px; }
+.jp-lab .arr-label { font-size: 12.5px; color: var(--ink-2); margin-bottom: 4px; }
+.jp-lab .arr-cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 2px solid var(--ty); border-radius: 10px; overflow: hidden; }
+.jp-lab .arr-cell { display: grid; justify-items: center; gap: 2px; padding: 6px 4px 8px; }
+.jp-lab .arr-cell + .arr-cell { border-left: 2px solid var(--ty); }
+.jp-lab .arr-cell svg { width: 76px; height: 61px; }
+.jp-lab .arr-idx { font-family: var(--font-code); font-size: 11.5px; font-weight: 700; color: var(--ty); }
+
+@media (max-width: 640px) {
+    .jp-lab .factory-top, .jp-lab .lab-top { grid-template-columns: minmax(0, 1fr); }
+    .jp-lab .factory-code, .jp-lab .lab-code { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+
+/* Große Bausteinhilfe: breiter als die übrigen Hinweise */
+.jp-tip.is-help.is-wide { width: min(720px, calc(100vw - 16px)); }
+
+/* JPadBlox: Ansicht rechts nur vergrößert mit Namen unter den Symbolen, sonst nur Symbole */
+.jp-app:not([data-cols="info"]):not([data-cols="infofull"]) .jp-side-switch button span:not(.jp-badge) { display: none; }
+.jp-app:not([data-cols="info"]):not([data-cols="infofull"]) .jp-side-switch button { min-height: 40px; }
+
+/* JPadBlox: Auswahl im Konstruktor-Dialog – zwei große Knöpfe übereinander */
+.jp-choice-list { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.jp-choice {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
+    padding: 14px 16px; border-radius: var(--radius-m); border: 1.5px solid var(--line); background: var(--surface-2); color: var(--ink);
+}
+.jp-choice b { font-size: 17px; color: var(--accent); }
+.jp-choice span { font-size: 14px; color: var(--ink-2); line-height: 1.4; }
+.jp-choice code { font-family: var(--font-code); font-size: .92em; background: var(--surface); border-radius: 5px; padding: 1px 4px; }
+.jp-choice:active { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border-color: var(--accent); }
+@media (hover: hover) { .jp-choice:hover { border-color: var(--accent); } }
+
+/* JPadBlox: schmale Bausteinleiste so schmal wie möglich – genau so breit wie der breiteste Baustein */
+.jp-app[data-layout="split"][data-bwide="false"] .jp-pane-blocks { width: max-content; max-width: 22vw; }
+.jp-app[data-bwide="false"] .jp-blockpanel { padding: 6px 6px 10px; }
+.jp-app[data-bwide="false"] .jp-blockpanel button.jp-block { padding: 0 10px; }
+.jp-app[data-bwide="false"] .jp-panehead { padding-left: 8px; }
+.jp-app[data-bwide="false"] .jp-panehead-title { font-size: 13px; }
+.jp-app[data-bwide="false"] .jp-more-toggle { white-space: normal; line-height: 1.2; }
+.jp-app[data-bwide="false"] .jp-blockgroup h3 { margin-left: 0; }
+
+/* JPadBlox: Datentyp schmaler, daneben das Häkchen „Array anlegen“ */
+.jp-type-row { display: flex; align-items: flex-end; gap: 14px; }
+.jp-type-row .jp-field { flex: 0 1 260px; min-width: 0; }
+.jp-array-check {
+    flex: none; display: inline-flex; align-items: center; gap: 8px;
+    min-height: 50px; padding: 0 14px; border-radius: var(--radius-m);
+    border: 1.5px solid var(--line); background: var(--surface-2); color: var(--ink); font-size: 16px; font-weight: 600;
+    cursor: pointer; -webkit-user-select: none; user-select: none;
+}
+.jp-array-check input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; }
+.jp-array-check:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.jp-count-field[hidden] { display: none; }
+.jp-form .jp-type-row + .jp-field { margin-top: 14px; }
 .jp-menu-actions button[hidden] { display: none; }
+
+/* ==========================================================================
+   Spaß-Themes (Knopf mit Einhorn/Hacker rechts neben der Glühbirne, gemerkt in jpadblox.skin)
+   Gelb bleibt in beiden Themes die Farbe für „Programm läuft“ (Start-Knopf, aktuelle Zeile).
+   ========================================================================== */
+
+.jp-topbar .jp-skinbtn { width: 38px; color: var(--ink-2); }
+.jp-skinbtn .jp-icon { width: 22px; height: 22px; }
+html.phone .jp-topbar .jp-skinbtn { display: none; }
+
+/* ---------- Flach: wie Hacker (feine Linien, spitze Ecken, gleiche Schriften), aber weiß und blau ---------- */
+
+:root[data-skin="flat"] {
+    --font-ui: "Chakra Petch", "Share Tech Mono", ui-monospace, Menlo, monospace;
+    --font-code: "Share Tech Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-2: #F1F5FF;
+    --ink: #0A1F4D;
+    --ink-2: #4D6694;
+    --line: #BCCDF2;
+    --accent: #0050F0;
+    --accent-soft: #E2EBFF;
+    --accent-ink: #FFFFFF;
+    --marker: #FFD43B;
+    --marker-ink: #1B1B12;
+    --marker-soft: rgba(255, 212, 59, 0.4);
+    --danger: #D61F69;
+    --danger-soft: #FDE6EF;
+    --warn: #B76E00;
+    --ok: #0050F0;
+    --shadow-lg: 0 0 0 1px #0050F0, 0 12px 28px -10px rgba(0, 80, 240, 0.25);
+
+    --syn-keyword: #C0158A;
+    --syn-type: #00809E;
+    --syn-string: #B25400;
+    --syn-number: #C2410C;
+    --syn-comment: #7489B6;
+    --syn-method: #0040C8;
+    --syn-field: #2B54C9;
+    --syn-annotation: #7B3FD0;
+    --syn-punct: #56709F;
+
+    --radius-s: 0px;
+    --radius-m: 0px;
+    --radius-l: 0px;
+    color-scheme: light;
+}
+/* spitze Ecken überall – auch dort, wo Rundungen fest eingetragen sind */
+:root[data-skin="flat"] *,
+:root[data-skin="flat"] *::before,
+:root[data-skin="flat"] *::after { border-radius: 0 !important; }
+:root[data-skin="flat"] body,
+:root[data-skin="flat"] .jp-app {
+    background:
+        repeating-linear-gradient(0deg, rgba(0, 80, 240, 0.035) 0 1px, transparent 1px 3px),
+        linear-gradient(90deg, rgba(0, 80, 240, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(0deg, rgba(0, 80, 240, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+        #FFFFFF;
+}
+:root[data-skin="flat"] .jp-pane {
+    border: 1px solid #2E6BF0;
+    box-shadow: 0 0 0 1px rgba(0, 80, 240, 0.06), 0 0 18px -6px rgba(0, 80, 240, 0.35);
+}
+:root[data-skin="flat"] .jp-pane-side { border-color: #0096C7; box-shadow: 0 0 18px -6px rgba(0, 150, 199, 0.25); }
+:root[data-skin="flat"] .jp-topbar { border-bottom: 1px solid var(--line); }
+:root[data-skin="flat"] .jp-project-name { letter-spacing: 0.04em; text-transform: uppercase; }
+:root[data-skin="flat"] .jp-topbar .jp-iconbtn { color: var(--accent); }
+:root[data-skin="flat"] .jp-topbar .jp-iconbtn:disabled { color: #B3C3E6; }
+:root[data-skin="flat"] .jp-topbar .jp-iconbtn:not(:disabled):active { text-shadow: 0 0 8px var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+:root[data-skin="flat"] .jp-run { box-shadow: 0 0 0 1px #E0B400; }
+:root[data-skin="flat"] .jp-stepbtn { border: 1px solid var(--accent); color: var(--accent); background: transparent; }
+:root[data-skin="flat"] .jp-segmented { background: transparent; border: 1px solid var(--line); }
+:root[data-skin="flat"] .jp-segmented button[aria-selected="true"],
+:root[data-skin="flat"] .jp-segmented button[aria-pressed="true"] {
+    background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent);
+}
+:root[data-skin="flat"] .jp-filetab.is-active { color: var(--accent);  }
+:root[data-skin="flat"] .jp-keybar { background: #FFFFFF; border-top: 1px solid var(--line); }
+:root[data-skin="flat"] .jp-keybar button { background: transparent; border: 1px solid var(--line); box-shadow: none; color: var(--accent); }
+:root[data-skin="flat"] .jp-keybar button:active,
+:root[data-skin="flat"] .jp-keybar button.is-pressed { background: var(--accent); color: var(--accent-ink); }
+:root[data-skin="flat"] .jp-bottomnav { background: #FFFFFF; border-top-color: var(--line); }
+:root[data-skin="flat"] :is(.jp-blockpanel, .jp-keybar) button.jp-block {
+    background: transparent; border: 1px solid color-mix(in srgb, var(--g) 55%, transparent); box-shadow: none; color: var(--g);
+}
+:root[data-skin="flat"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:active,
+:root[data-skin="flat"] :is(.jp-blockpanel, .jp-keybar) button.jp-block.is-pressed { background: var(--g); color: #FFFFFF; box-shadow: 0 0 12px var(--g); }
+:root[data-skin="flat"] [data-group="klasse"] { --g: #0050F0; }
+:root[data-skin="flat"] [data-group="ablauf"] { --g: #C0158A; }
+:root[data-skin="flat"] [data-group="daten"]  { --g: #0089B5; }
+:root[data-skin="flat"] .jp-blockgroup h3 { letter-spacing: 0.12em; }
+:root[data-skin="flat"] .jp-editor .cm-cursor { border-left: 9px solid rgba(0, 80, 240, 0.45); animation: jp-blink 1s steps(1) infinite; }
+@keyframes jp-blink { 50% { border-left-color: transparent; } }
+:root[data-skin="flat"] .jp-skinbtn { color: var(--accent) !important; }
+/* ganz flach: keine Hintergrundfläche hinter und in den Bausteinen */
+:root[data-skin="flat"] .jp-blockpanel .jp-blockgroup-items { background: transparent; padding: 0; }
+:root[data-skin="flat"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:not(:active):not(.is-pressed) { background: transparent; box-shadow: none; }
+:root[data-skin="flat"] ::selection { background: rgba(0, 80, 240, 0.3); }
+:root[data-skin="flat"] .jp-drawer { border-right: 1px solid var(--accent); }
+:root[data-skin="flat"] .jp-tip, :root[data-skin="flat"] .jp-dialog { border: 1px solid var(--accent); }
+
+/* ---------- Hacker: schwarz, Neon, feine Linien, spitze Ecken ---------- */
+
+:root[data-skin="hacker"] {
+    --font-ui: "Chakra Petch", "Share Tech Mono", ui-monospace, Menlo, monospace;
+    --font-code: "Share Tech Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+    --bg: #020604;
+    --surface: #050C08;
+    --surface-2: #0A1710;
+    --ink: #D7FFE6;
+    --ink-2: #5FB386;
+    --line: #12462C;
+    --accent: #00FF9C;
+    --accent-soft: #04291A;
+    --accent-ink: #001A0E;
+    --marker: #F2FF3A;
+    --marker-ink: #121400;
+    --marker-soft: rgba(242, 255, 58, 0.18);
+    --danger: #FF2E88;
+    --danger-soft: #2A0716;
+    --warn: #FFB020;
+    --ok: #00FF9C;
+    --shadow-lg: 0 0 0 1px #00FF9C, 0 0 28px rgba(0, 255, 156, 0.25);
+
+    --syn-keyword: #FF2EC4;
+    --syn-type: #00E5FF;
+    --syn-string: #F2FF3A;
+    --syn-number: #FF9F1C;
+    --syn-comment: #2F7A52;
+    --syn-method: #7CFFCB;
+    --syn-field: #B8FF5A;
+    --syn-annotation: #C77DFF;
+    --syn-punct: #6FA88A;
+
+    --radius-s: 0px;
+    --radius-m: 0px;
+    --radius-l: 0px;
+    color-scheme: dark;
+}
+/* spitze Ecken überall – auch dort, wo Rundungen fest eingetragen sind */
+:root[data-skin="hacker"] *,
+:root[data-skin="hacker"] *::before,
+:root[data-skin="hacker"] *::after { border-radius: 0 !important; }
+:root[data-skin="hacker"] body,
+:root[data-skin="hacker"] .jp-app {
+    background:
+        repeating-linear-gradient(0deg, rgba(0, 255, 156, 0.035) 0 1px, transparent 1px 3px),
+        linear-gradient(90deg, rgba(0, 255, 156, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(0deg, rgba(0, 255, 156, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+        #020604;
+}
+:root[data-skin="hacker"] .jp-pane {
+    border: 1px solid #0E6B3E;
+    box-shadow: 0 0 0 1px rgba(0, 255, 156, 0.06), 0 0 18px -6px rgba(0, 255, 156, 0.35);
+}
+:root[data-skin="hacker"] .jp-pane-side { border-color: #0B5E6E; box-shadow: 0 0 18px -6px rgba(0, 229, 255, 0.35); }
+:root[data-skin="hacker"] .jp-topbar { border-bottom: 1px solid var(--line); }
+:root[data-skin="hacker"] .jp-project-name { letter-spacing: 0.04em; text-transform: uppercase; }
+:root[data-skin="hacker"] .jp-topbar .jp-iconbtn { color: var(--accent); }
+:root[data-skin="hacker"] .jp-topbar .jp-iconbtn:disabled { color: #1F5A3C; }
+:root[data-skin="hacker"] .jp-topbar .jp-iconbtn:not(:disabled):active { text-shadow: 0 0 8px var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+:root[data-skin="hacker"] .jp-run { box-shadow: 0 0 0 1px var(--marker), 0 0 16px rgba(242, 255, 58, 0.45); }
+:root[data-skin="hacker"] .jp-stepbtn { border: 1px solid var(--accent); color: var(--accent); background: transparent; }
+:root[data-skin="hacker"] .jp-segmented { background: transparent; border: 1px solid var(--line); }
+:root[data-skin="hacker"] .jp-segmented button[aria-selected="true"],
+:root[data-skin="hacker"] .jp-segmented button[aria-pressed="true"] {
+    background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent);
+}
+:root[data-skin="hacker"] .jp-filetab.is-active { color: var(--accent); text-shadow: 0 0 8px rgba(0, 255, 156, 0.6); }
+:root[data-skin="hacker"] .jp-keybar { background: #020604; border-top: 1px solid var(--line); }
+:root[data-skin="hacker"] .jp-keybar button { background: transparent; border: 1px solid var(--line); box-shadow: none; color: var(--accent); }
+:root[data-skin="hacker"] .jp-keybar button:active,
+:root[data-skin="hacker"] .jp-keybar button.is-pressed { background: var(--accent); color: var(--accent-ink); }
+:root[data-skin="hacker"] .jp-bottomnav { background: #020604; border-top-color: var(--line); }
+:root[data-skin="hacker"] .jp-bottomnav button[aria-current="true"] { text-shadow: 0 0 8px var(--accent); }
+:root[data-skin="hacker"] :is(.jp-blockpanel, .jp-keybar) button.jp-block {
+    background: transparent; border: 1px solid color-mix(in srgb, var(--g) 55%, transparent); box-shadow: none; color: var(--g);
+}
+:root[data-skin="hacker"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:active,
+:root[data-skin="hacker"] :is(.jp-blockpanel, .jp-keybar) button.jp-block.is-pressed { background: var(--g); color: #020604; box-shadow: 0 0 12px var(--g); }
+:root[data-skin="hacker"] [data-group="klasse"] { --g: #00FF9C; }
+:root[data-skin="hacker"] [data-group="ablauf"] { --g: #FF2EC4; }
+:root[data-skin="hacker"] [data-group="daten"]  { --g: #00E5FF; }
+:root[data-skin="hacker"] .jp-blockgroup h3 { letter-spacing: 0.12em; }
+:root[data-skin="hacker"] .jp-editor .cm-cursor { border-left: 9px solid rgba(0, 255, 156, 0.45); animation: jp-blink 1s steps(1) infinite; }
+@keyframes jp-blink { 50% { border-left-color: transparent; } }
+:root[data-skin="hacker"] .jp-editor .cm-content { text-shadow: 0 0 2px rgba(0, 255, 156, 0.25); }
+:root[data-skin="hacker"] .jp-skinbtn { color: var(--danger) !important; }
+:root[data-skin="hacker"] ::selection { background: rgba(0, 255, 156, 0.3); }
+:root[data-skin="hacker"] .jp-drawer { border-right: 1px solid var(--accent); }
+:root[data-skin="hacker"] .jp-tip, :root[data-skin="hacker"] .jp-dialog { border: 1px solid var(--accent); }
+
+/* ---------- Pink-Hacker: wie Hacker, nur ist alles Grüne pink (und Ablauf/Schlüsselwörter dafür grün) ---------- */
+
+:root[data-skin="pink"] {
+    --font-ui: "Chakra Petch", "Share Tech Mono", ui-monospace, Menlo, monospace;
+    --font-code: "Share Tech Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+    --bg: #060204;
+    --surface: #0C050A;
+    --surface-2: #170A13;
+    --ink: #FFD7F2;
+    --ink-2: #B35F9C;
+    --line: #46123A;
+    --accent: #FF2EC4;
+    --accent-soft: #290420;
+    --accent-ink: #1A0012;
+    --marker: #F2FF3A;
+    --marker-ink: #121400;
+    --marker-soft: rgba(242, 255, 58, 0.18);
+    --danger: #FF2E88;
+    --danger-soft: #2A0716;
+    --warn: #FFB020;
+    --ok: #FF2EC4;
+    --shadow-lg: 0 0 0 1px #FF2EC4, 0 0 28px rgba(255, 46, 196, 0.25);
+
+    --syn-keyword: #00FF9C;
+    --syn-type: #00E5FF;
+    --syn-string: #F2FF3A;
+    --syn-number: #FF9F1C;
+    --syn-comment: #7A2F62;
+    --syn-method: #FF7CDB;
+    --syn-field: #FFA0E8;
+    --syn-annotation: #C77DFF;
+    --syn-punct: #A86F96;
+
+    --radius-s: 0px;
+    --radius-m: 0px;
+    --radius-l: 0px;
+    color-scheme: dark;
+}
+/* spitze Ecken überall – auch dort, wo Rundungen fest eingetragen sind */
+:root[data-skin="pink"] *,
+:root[data-skin="pink"] *::before,
+:root[data-skin="pink"] *::after { border-radius: 0 !important; }
+:root[data-skin="pink"] body,
+:root[data-skin="pink"] .jp-app {
+    background:
+        repeating-linear-gradient(0deg, rgba(255, 46, 196, 0.035) 0 1px, transparent 1px 3px),
+        linear-gradient(90deg, rgba(255, 46, 196, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(0deg, rgba(255, 46, 196, 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+        #060204;
+}
+:root[data-skin="pink"] .jp-pane {
+    border: 1px solid #6B0E52;
+    box-shadow: 0 0 0 1px rgba(255, 46, 196, 0.06), 0 0 18px -6px rgba(255, 46, 196, 0.35);
+}
+:root[data-skin="pink"] .jp-pane-side { border-color: #0B5E6E; box-shadow: 0 0 18px -6px rgba(0, 229, 255, 0.35); }
+:root[data-skin="pink"] .jp-topbar { border-bottom: 1px solid var(--line); }
+:root[data-skin="pink"] .jp-project-name { letter-spacing: 0.04em; text-transform: uppercase; }
+:root[data-skin="pink"] .jp-topbar .jp-iconbtn { color: var(--accent); }
+:root[data-skin="pink"] .jp-topbar .jp-iconbtn:disabled { color: #5A1F48; }
+:root[data-skin="pink"] .jp-topbar .jp-iconbtn:not(:disabled):active { text-shadow: 0 0 8px var(--accent); filter: drop-shadow(0 0 6px var(--accent)); }
+:root[data-skin="pink"] .jp-run { box-shadow: 0 0 0 1px var(--marker), 0 0 16px rgba(242, 255, 58, 0.45); }
+:root[data-skin="pink"] .jp-stepbtn { border: 1px solid var(--accent); color: var(--accent); background: transparent; }
+:root[data-skin="pink"] .jp-segmented { background: transparent; border: 1px solid var(--line); }
+:root[data-skin="pink"] .jp-segmented button[aria-selected="true"],
+:root[data-skin="pink"] .jp-segmented button[aria-pressed="true"] {
+    background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent);
+}
+:root[data-skin="pink"] .jp-filetab.is-active { color: var(--accent); text-shadow: 0 0 8px rgba(255, 46, 196, 0.6); }
+:root[data-skin="pink"] .jp-keybar { background: #060204; border-top: 1px solid var(--line); }
+:root[data-skin="pink"] .jp-keybar button { background: transparent; border: 1px solid var(--line); box-shadow: none; color: var(--accent); }
+:root[data-skin="pink"] .jp-keybar button:active,
+:root[data-skin="pink"] .jp-keybar button.is-pressed { background: var(--accent); color: var(--accent-ink); }
+:root[data-skin="pink"] .jp-bottomnav { background: #060204; border-top-color: var(--line); }
+:root[data-skin="pink"] .jp-bottomnav button[aria-current="true"] { text-shadow: 0 0 8px var(--accent); }
+:root[data-skin="pink"] :is(.jp-blockpanel, .jp-keybar) button.jp-block {
+    background: transparent; border: 1px solid color-mix(in srgb, var(--g) 55%, transparent); box-shadow: none; color: var(--g);
+}
+:root[data-skin="pink"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:active,
+:root[data-skin="pink"] :is(.jp-blockpanel, .jp-keybar) button.jp-block.is-pressed { background: var(--g); color: #060204; box-shadow: 0 0 12px var(--g); }
+:root[data-skin="pink"] [data-group="klasse"] { --g: #FF2EC4; }
+:root[data-skin="pink"] [data-group="ablauf"] { --g: #00FF9C; }
+:root[data-skin="pink"] [data-group="daten"]  { --g: #00E5FF; }
+:root[data-skin="pink"] .jp-blockgroup h3 { letter-spacing: 0.12em; }
+:root[data-skin="pink"] .jp-editor .cm-cursor { border-left: 9px solid rgba(255, 46, 196, 0.45); animation: jp-blink 1s steps(1) infinite; }
+:root[data-skin="pink"] .jp-editor .cm-content { text-shadow: 0 0 2px rgba(255, 46, 196, 0.25); }
+:root[data-skin="pink"] .jp-skinbtn { color: var(--danger) !important; }
+:root[data-skin="pink"] ::selection { background: rgba(255, 46, 196, 0.3); }
+:root[data-skin="pink"] .jp-drawer { border-right: 1px solid var(--accent); }
+:root[data-skin="pink"] .jp-tip, :root[data-skin="pink"] .jp-dialog { border: 1px solid var(--accent); }
+
+
+/* Umbenennen-Dialog */
+.jp-rename-hint { font-size: 13px; margin: 2px 0 0; color: var(--ink-2); }
+.jp-rename-hint code { font-family: var(--font-code); font-size: 0.95em; }
+
+/* Konstruktor-Dialog: Erklärung mit Aufzählung; Methoden-Dialog: Parameterliste anfangs leer */
+.jp-ctor-text p { margin: 0 0 6px; }
+.jp-ctor-text ul { margin: 0 0 4px; padding-left: 20px; }
+.jp-ctor-text li { margin: 2px 0; }
+.jp-param-rows:empty { display: none; }
+
+/* Vorschlagsliste: Klappzeile für weitere/geerbte Symbole */
+.cm-tooltip-autocomplete > ul > li:has(.cm-completionIcon-jp-toggle) { font-family: var(--font-ui); font-weight: 700; color: var(--accent); border-top: 1px solid var(--line); }
+.cm-completionIcon-jp-toggle { display: none; }
+
+/* Variablen-Dialog: Vorschau der Anweisung */
+.jp-preview { margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-s); background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 4px; }
+.jp-preview-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
+.jp-preview code { font-family: var(--font-code); font-size: 15px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.jp-preview .pv-kw { color: var(--syn-keyword); font-weight: 600; }
+.jp-preview .pv-ty { color: var(--syn-type); }
+.jp-preview .pv-str { color: var(--syn-string); }
+.jp-preview .pv-num { color: var(--syn-number); }
+.jp-preview .pv-ph { color: var(--ink-2); font-style: italic; }
+.jp-type-row { flex-wrap: wrap; }
+
+/* Variablen-Dialog: dezente Häkchen unter dem Datentyp */
+.jp-check-row { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 4px; }
+.jp-mini-check { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--ink-2); cursor: pointer; min-height: 32px; }
+.jp-mini-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.jp-mini-check:has(input:checked) { color: var(--ink); }
+
+/* Variablen-Dialog: Häkchen rechtsbündig in der Zeile des Datentyps */
+.jp-type-checks { display: flex; gap: 8px; margin-left: auto; flex-wrap: nowrap; justify-content: flex-end; }
+.jp-type-row-var { flex-wrap: nowrap; gap: 10px; }
+.jp-type-row-var .jp-field { flex: 1 1 0; min-width: 0; }
+.jp-type-row-var .jp-select { width: 100%; min-width: 0; }
+
+/* Willkommen beim ersten Start */
+.jp-welcome { max-width: 520px; }
+.jp-welcome-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.jp-welcome-head .jp-sheet-title { margin: 0; }
+.jp-welcome-mark { flex: none; width: 40px; height: 40px; border-radius: 11px; background: var(--marker); color: var(--marker-ink); display: grid; place-items: center; font-weight: 800; font-size: 22px; }
+.jp-sheet:has(.jp-welcome) { max-height: calc(100% - 24px); overflow-y: auto; }
+.jp-welcome p { margin: 0 0 10px; line-height: 1.5; }
+.jp-welcome ul { margin: 0 0 12px; padding-left: 20px; line-height: 1.45; }
+.jp-welcome li { margin: 4px 0; }
+.jp-welcome-tip { padding: 10px 12px; border-radius: var(--radius-s); background: var(--marker-soft); }
+.jp-welcome-warn { padding: 10px 12px; border-radius: var(--radius-s); background: var(--danger-soft); border-left: 4px solid var(--danger); }
+.jp-welcome-warn b:first-child { color: var(--danger); }
+
+/* ---------- Flach, Dunkelmodus: Navy statt Weiß, weiße Ränder und Symbole, Schriftfarben wie im Hacker-Theme ---------- */
+:root[data-skin="flat"][data-effective="dark"] {
+    --bg: #000080;
+    --surface: #000080;
+    --surface-2: #00006A;
+    --ink: #D7FFE6;
+    --ink-2: #A9C8FF;
+    --line: #FFFFFF;
+    --accent: #FFFFFF;
+    --accent-soft: rgba(255, 255, 255, 0.16);
+    --accent-ink: #000080;
+    --marker: #F2FF3A;
+    --marker-ink: #121400;
+    --marker-soft: rgba(242, 255, 58, 0.22);
+    --danger: #FF5CA8;
+    --danger-soft: #2A0A4A;
+    --warn: #FFB020;
+    --ok: #00FF9C;
+    --shadow-lg: 0 0 0 1px #FFFFFF, 0 14px 30px -12px rgba(0, 0, 0, 0.6);
+
+    --syn-keyword: #FF2EC4;
+    --syn-type: #00E5FF;
+    --syn-string: #F2FF3A;
+    --syn-number: #FF9F1C;
+    --syn-comment: #8FA6E8;
+    --syn-method: #7CFFCB;
+    --syn-field: #B8FF5A;
+    --syn-annotation: #C77DFF;
+    --syn-punct: #C9D6FF;
+    color-scheme: dark;
+}
+:root[data-skin="flat"][data-effective="dark"] body,
+:root[data-skin="flat"][data-effective="dark"] .jp-app {
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(0deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px) 0 0 / 32px 32px,
+        #000080;
+}
+:root[data-skin="flat"][data-effective="dark"] .jp-pane,
+:root[data-skin="flat"][data-effective="dark"] .jp-pane-side { border: 1px solid #FFFFFF; box-shadow: none; }
+:root[data-skin="flat"][data-effective="dark"] .jp-topbar { border-bottom-color: #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] .jp-topbar .jp-iconbtn,
+:root[data-skin="flat"][data-effective="dark"] .jp-skinbtn { color: #FFFFFF !important; }
+:root[data-skin="flat"][data-effective="dark"] .jp-topbar .jp-iconbtn:disabled { color: rgba(255, 255, 255, 0.35) !important; }
+:root[data-skin="flat"][data-effective="dark"] .jp-stepbtn { border-color: #FFFFFF; color: #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] .jp-run { box-shadow: 0 0 0 1px #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] .jp-keybar,
+:root[data-skin="flat"][data-effective="dark"] .jp-bottomnav { background: #000080; border-top-color: #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] .jp-keybar button { border-color: #FFFFFF; color: #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] .jp-keybar button:active,
+:root[data-skin="flat"][data-effective="dark"] .jp-keybar button.is-pressed { background: #FFFFFF; color: #000080; }
+:root[data-skin="flat"][data-effective="dark"] [data-group="klasse"] { --g: #00FF9C; }
+:root[data-skin="flat"][data-effective="dark"] [data-group="ablauf"] { --g: #FF2EC4; }
+:root[data-skin="flat"][data-effective="dark"] [data-group="daten"]  { --g: #00E5FF; }
+:root[data-skin="flat"][data-effective="dark"] :is(.jp-blockpanel, .jp-keybar) button.jp-block { border-color: #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] .jp-editor .cm-cursor { border-left-color: rgba(255, 255, 255, 0.55); }
+:root[data-skin="flat"][data-effective="dark"] .jp-drawer { border-right-color: #FFFFFF; }
+:root[data-skin="flat"][data-effective="dark"] ::selection { background: rgba(255, 255, 255, 0.3); }
+:root[data-skin="flat"][data-effective="dark"] .jp-topbar .jp-bulb { color: var(--marker) !important; }
+
+/* Dialoge verschieben (ab 700 px Breite): Griffleiste oben, Überschrift als Ziehgriff */
+.jp-sheet-grip { width: 44px; height: 5px; border-radius: 3px; background: var(--line); margin: -8px auto 10px; cursor: grab; touch-action: none; }
+.jp-sheet-grip::before { content: ""; display: block; height: 28px; margin: -12px -40px 0; }
+.jp-drag-handle { cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none; }
+.jp-sheet.is-dragging, .jp-sheet.is-dragging .jp-drag-handle { cursor: grabbing; }
+.jp-sheet.is-dragging { transition: none; }
+@media (max-width: 699px) { .jp-sheet-grip { display: none; } }
+
+/* Dialoge mittig über dem Editorbereich, im oberen Drittel; Hintergrund nur leicht abdunkeln.
+   Der Abstand oben (::before) schrumpft, wenn ein Dialog sehr hoch ist, damit er ganz sichtbar bleibt. */
+@media (min-width: 700px) {
+    .jp-sheet-layer.is-editor { flex-direction: column; align-items: flex-start; justify-content: flex-start; padding: 12px 0 0; }
+    .jp-sheet-layer.is-editor .jp-sheet { width: calc(100vw - 24px); }
+    .jp-sheet-layer.is-editor::before { content: ""; flex: 0 1 10vh; flex: 0 1 10dvh; }
+    .jp-sheet-layer.is-editor .jp-sheet { flex-shrink: 0; }
+    .jp-sheet-layer.is-editor.is-open { background: rgba(10, 14, 24, 0.14); }
+    .jp-sheet-layer.is-editor .jp-sheet { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); }
+}
+
+/* Kompaktere Dialoge: schmaler, kleinere Knöpfe; Skizzen (eingeblendet) auf etwa 75 % */
+@media (min-width: 700px) {
+    .jp-sheet { max-width: min(420px, var(--sheet-cap, 9999px)); padding: 16px 18px 14px; }
+    .jp-sheet:has(.jp-welcome) { max-width: min(540px, var(--sheet-cap, 9999px)); }
+    .jp-sheet.is-method.sketch-hidden { max-width: min(420px, var(--sheet-cap, 9999px)); }
+    .jp-sheet.is-method:not(.sketch-hidden) { max-width: 800px !important; }
+    .jp-method-split { grid-template-columns: minmax(0, 1fr) 340px; }
+    .jp-method-input { padding-right: 18px; }
+    .jp-method-anim { padding-left: 18px; }
+}
+.jp-sheet .jp-sheet-buttons { margin-top: 14px; }
+.jp-sheet .jp-sheet-buttons .jp-btn { min-height: 38px; padding: 0 14px; font-size: 15px; }
+.jp-sheet .jp-sheet-title { font-size: 18px; margin-bottom: 10px; }
+.jp-sheet .jp-choice { padding: 10px 12px; }
+
+/* Objektkarten behalten auch in den Themes mit spitzen Ecken ihre runden Ecken (Unterschied zur Klassenkarte) */
+:root[data-skin="hacker"] .jp-uml-card.is-object,
+:root[data-skin="pink"] .jp-uml-card.is-object,
+:root[data-skin="flat"] .jp-uml-card.is-object { border-radius: 14px !important; }
+
+/* JPadBlox: Dialog „{get,set}“ – Tabelle Attribut | get | set */
+.jp-acc-table { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 2px 6px; max-height: 50vh; overflow-y: auto; }
+.jp-acc-head { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); padding: 4px 10px; }
+button.jp-acc-head { font: inherit; font-size: 13px; font-family: var(--font-code); text-transform: none; letter-spacing: 0; font-weight: 700;
+    color: var(--accent); background: none; border: 1.5px solid var(--line); border-radius: var(--radius-s); min-width: 76px; min-height: 30px; cursor: pointer; }
+.jp-acc-name { font-family: var(--font-code); font-size: 15px; color: var(--ink); padding: 0 10px; min-height: 44px; display: flex; align-items: center;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-top: 1px solid var(--line); }
+.jp-acc-box, .jp-acc-have { display: flex; align-items: center; justify-content: center; min-width: 76px; min-height: 44px; border-top: 1px solid var(--line); }
+.jp-acc-box { cursor: pointer; }
+.jp-acc-box input { width: 22px; height: 22px; accent-color: var(--accent); margin: 0; }
+.jp-acc-have { font-size: 12px; color: var(--ink-2); }
+
+/* JPadBlox: Dialog „if“ – Eingaben links, Vorschau rechts (schmal: darunter) */
+.jp-if-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.jp-if-elseifs { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.jp-if-elseifs:empty { display: none; }
+.jp-if-row code, .jp-if-hint code { font-family: var(--font-code); font-weight: 700; color: var(--syn-keyword); }
+.jp-if-line { display: flex; gap: 8px; align-items: stretch; }
+.jp-if-line input { flex: 1; min-width: 0; }
+.jp-field .jp-if-line input {
+    font: inherit; font-size: 17px; color: var(--ink); background: var(--bg);
+    border: 1.5px solid var(--line); border-radius: var(--radius-m); padding: 12px 14px;
+}
+.jp-field .jp-if-line input:focus { border-color: var(--accent); outline: none; }
+.jp-btn.jp-if-remove { flex: none; min-width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.jp-btn.jp-if-remove svg { width: 18px; height: 18px; }
+.jp-if-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.jp-if-actions .jp-btn-small { margin-top: 0; align-self: center; }
+.jp-if-else span { font-family: var(--font-code); }
+.jp-if-hint { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); }
+.jp-if-preview { margin-top: 0; align-content: start; }
+.jp-if-preview code { display: block; font-size: 14px; white-space: pre; overflow-x: auto; overflow-wrap: normal; }
+@media (min-width: 700px) {
+    .jp-sheet.is-if { max-width: min(760px, calc(100vw - 24px)) !important; }
+    .jp-if-split { grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: 18px; }
+    .jp-if-preview { max-height: 70vh; overflow: auto; }
+}
+
+/* JPadBlox: kurzer, dezenter Hinweis unten (z. B. beim Baustein „public?“) */
+.jp-tapnote {
+    position: fixed; left: 50%; z-index: 70;
+    bottom: calc(var(--bottomnav-h) + 14px + env(safe-area-inset-bottom) + var(--keyboard-offset));
+    padding: 6px 14px; border-radius: 999px; font-size: 13px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent); color: var(--ink-2);
+    border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    transform: translate(-50%, 8px); opacity: 0; pointer-events: none; transition: opacity 160ms, transform 160ms;
+    white-space: nowrap;
+}
+.jp-tapnote.is-visible { opacity: 1; transform: translate(-50%, 0); }
+
+/* JPadBlox: Bedingungsfelder mit Code Completion im if-Dialog (sehen aus wie Eingabefelder).
+   Höhere Spezifität als das Grund-Theme von CodeMirror nötig. */
+.jp-condhost { min-width: 0; }
+.jp-if-line > .jp-condhost { flex: 1; }
+.jp-sheet .jp-condfield.cm-editor {
+    font-size: 16px; color: var(--ink); background: var(--bg);
+    border: 1.5px solid var(--line); border-radius: var(--radius-m);
+}
+.jp-sheet .jp-condfield.cm-editor.cm-focused { outline: none; border-color: var(--accent); }
+.jp-sheet .jp-condfield .cm-scroller { font-family: var(--font-code); line-height: 1.4; overflow-x: auto; overflow-y: hidden; }
+.jp-sheet .jp-condfield .cm-content { padding: 12px 14px; min-height: 0; caret-color: var(--ink); }
+.jp-sheet .jp-condfield .cm-line { padding: 0; }
+.jp-sheet .jp-condfield .cm-placeholder { color: var(--ink-2); opacity: .7; }
+
+/* JPadBlox: Hilfsleiste für Eingabefelder im Dialog (Bedingungen im if-Dialog): über dem Dialog,
+   nur Zeichen; Zeilen-, Haltepunkt-, Info- und Umschaltknöpfe sowie ; und { } entfallen */
+html.field-keys .jp-keybar { display: flex; z-index: 75; }
+.jp-keybar.is-field .jp-blocks-scroll { display: none !important; }
+.jp-keybar.is-field .jp-keybar-scroll:not(.jp-blocks-scroll) { display: flex !important; }
+.jp-keybar.is-field [data-nofield],
+.jp-keybar.is-field [data-action="mode"],
+.jp-keybar.is-field .jp-key-line,
+.jp-keybar.is-field [data-action="breakpoint"],
+.jp-keybar.is-field [data-action="info"] { display: none !important; }
+html.field-keys .jp-sheet-layer { padding-bottom: calc(var(--keyboard-offset) + 56px); }
+
+/* ===================================================================================
+   JPadBlox: Kompakte Ansicht – Knopf „Kopfzeilen zuklappen“ (rechts neben der Glühbirne)
+   Kopfzeile halb so hoch, Knöpfe/Titel/Reiter/Umschalter nur noch als antippbare Striche.
+   =================================================================================== */
+.jp-foldgroup { display: flex; align-items: center; gap: 6px; flex: none; }
+.jp-foldgroup.is-aligned { position: absolute; top: 50%; translate: 0 -50%; }
+.jp-topbar .jp-foldbtn { width: 44px; height: 40px; border-radius: 12px; flex: none; }
+.jp-foldbtn .jp-icon { width: 22px; height: 22px; }
+html.phone .jp-topbar .jp-foldgroup { display: none; }
+
+.jp-app[data-compact="true"] { --topbar-h: 26px; }
+/* Der Zuklapp-Knopf selbst: flach und schmal, mit kleinem Pfeil nach unten */
+.jp-app[data-compact="true"] .jp-topbar .jp-foldbtn { width: 44px; height: 14px; border-radius: 7px; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.14); }
+.jp-app[data-compact="true"] .jp-foldbtn .jp-icon { width: 14px; height: 14px; stroke-width: 3; }
+
+/* Alle übrigen Knöpfe der Kopfzeile und der Projekttitel als Striche: Jeder Strich ist genau so breit wie der Knopf
+   und steht an derselben Stelle (Breiten, Abstände und Inhalte bleiben – der Inhalt wird nur unsichtbar),
+   so dick wie der gelbe Aufklapp-Knopf (14 px), ohne Symbole */
+.jp-app[data-compact="true"] .jp-topbar button:not(.jp-foldbtn) {
+    height: 26px; overflow: hidden; position: relative;
+    background: transparent !important; box-shadow: none !important; border-color: transparent !important; text-shadow: none !important;
+}
+.jp-app[data-compact="true"] .jp-topbar button:not(.jp-foldbtn) > * { visibility: hidden; }
+.jp-app[data-compact="true"] .jp-topbar button:not(.jp-foldbtn)::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 14px; transform: translateY(-50%);
+    border-radius: 7px; background: color-mix(in srgb, var(--ink-2) 38%, transparent);
+}
+.jp-app[data-compact="true"] .jp-topbar button.jp-project::after { background: color-mix(in srgb, var(--ink) 45%, transparent); }
+.jp-app[data-compact="true"] .jp-topbar button.jp-run::after { background: var(--marker); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.14); }
+.jp-app[data-compact="true"] .jp-topbar button.jp-stop::after { background: color-mix(in srgb, var(--danger) 65%, transparent); }
+.jp-app[data-compact="true"] .jp-topbar button.jp-stepbtn::after { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+.jp-app[data-compact="true"] .jp-topbar button.jp-bulb::after { background: var(--marker); }
+.jp-app[data-compact="true"] .jp-topbar .jp-topbar-sep { height: 14px; }
+
+/* Dateireiter: ein Strich je Datei, der aktive in der Akzentfarbe */
+.jp-app[data-compact="true"] .jp-filebar { align-items: center; }
+.jp-app[data-compact="true"] .jp-filetabs { padding: 2px 8px; gap: 4px; }
+.jp-app[data-compact="true"] .jp-filetab { height: 14px; width: 40px; padding: 0; justify-content: center; font-size: 0; background: transparent; border-radius: 4px; }
+.jp-app[data-compact="true"] .jp-filetab > * { display: none !important; }
+.jp-app[data-compact="true"] .jp-filetab::after {
+    content: ""; position: static; display: block; width: 30px; height: 4px; border-radius: 2px; background: var(--ink-2); opacity: .45;
+}
+.jp-app[data-compact="true"] .jp-filetab.is-active::after { background: var(--accent); opacity: 1; height: 5px; }
+.jp-app[data-compact="true"] .jp-filetab.has-errors::after { box-shadow: 0 0 0 1.5px var(--danger); }
+.jp-app[data-compact="true"] .jp-filebar-actions,
+.jp-app[data-compact="true"] .jp-filebar .jp-layoutbtn { display: none; }
+
+/* Kopf „Bausteine“ ausblenden */
+.jp-app[data-compact="true"] .jp-pane-blocks .jp-panehead { display: none; }
+
+/* Umschalter der rechten Ansicht (Lernpfad, Ausgabe, Variablen …) als Striche */
+.jp-app[data-compact="true"] .jp-sidehead .jp-layoutbtn { display: none; }
+.jp-app[data-compact="true"] .jp-side-switch { margin: 2px 8px; padding: 0; gap: 4px; background: transparent; border: 0; }
+.jp-app[data-compact="true"] .jp-side-switch button {
+    min-height: 14px; height: 14px; padding: 0; font-size: 0; background: transparent !important; box-shadow: none !important;
+}
+.jp-app[data-compact="true"] .jp-side-switch button > * { display: none !important; }
+.jp-app[data-compact="true"] .jp-side-switch button::after {
+    content: ""; display: block; width: min(40px, 70%); height: 4px; border-radius: 2px; background: var(--ink-2); opacity: .45;
+}
+.jp-app[data-compact="true"] .jp-side-switch .jp-lernpfad-tab { width: 48px; }
+.jp-app[data-compact="true"] .jp-side-switch button[aria-selected="true"]::after { background: var(--accent); opacity: 1; height: 5px; }
+
+/* Kompakte Ansicht oder ganz schmale Bausteinleiste: Kurzzeichen statt Namen (deutlich schmaler) */
+.jp-block-ico { display: none; }
+.jp-block-ico[data-ico]::before { content: attr(data-ico); }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel .jp-block-label { display: none; }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel .jp-block-ico { display: inline-flex; align-items: center; justify-content: center; }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel .jp-block-ico svg { width: 20px; height: 20px; }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel { padding: 4px 5px 10px; }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel button.jp-block {
+    min-width: 44px; width: 100%; padding: 0 4px 0 2px; text-align: center; justify-content: center;
+    display: flex; align-items: center; font-weight: 700; font-size: 15px; letter-spacing: -0.02em;
+}
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"])[data-bwide="false"] .jp-pane-blocks { width: max-content; }
+/* Gruppenüberschriften als farbige Striche, „Mehr…“ nur als Pfeil */
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel .jp-blockgroup h3 { font-size: 0; height: 4px; width: 26px; margin: 8px auto 6px; border-radius: 2px; background: var(--g); }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel .jp-more-label { display: none; }
+:is(.jp-app[data-compact="true"], .jp-app[data-btiny="true"]) .jp-blockpanel .jp-more-toggle { justify-content: center; }
+/* Ganz schmale Bausteinleiste: Kopf „Bausteine“ weg, oben der gelbe Pfeil zurück zur normalen Breite */
+.jp-blocks-restore { display: none; }
+.jp-app[data-btiny="true"] .jp-pane-blocks .jp-panehead { display: none; }
+.jp-app[data-btiny="true"] .jp-pane-blocks .jp-blocks-restore {
+    display: inline-grid; flex: none; align-self: center; width: 40px; height: 30px; margin: 8px 0 0; border-radius: 10px;
+}
+.jp-blocks-restore .jp-icon { width: 20px; height: 20px; }
+
+/* JPadBlox: Eingabe des JCodes */
+.jp-jcode-input {
+    width: 100%; margin-top: 6px; padding: 12px 14px; text-align: center;
+    font-family: var(--font-code); font-size: 30px; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: var(--radius-m);
+}
+.jp-jcode-input:focus { border-color: var(--accent); outline: none; }
+.jp-jcode-input::placeholder { color: var(--ink-2); opacity: .4; letter-spacing: 0.3em; }
+
+/* JPadBlox: Ansichtswechsel bei offener Tastatur (iPad hochkant): Der Editor bleibt unsichtbar „geparkt“ und
+   behält den Fokus, damit die Tastatur nicht zuklappt; die Ansicht endet über der Tastatur. */
+.jp-app[data-kbhold="true"][data-layout="tabs"]:not([data-view="code"]) .jp-pane-code {
+    display: flex; position: absolute; left: 0; top: 0; width: 2px; height: 2px; opacity: 0; overflow: hidden; pointer-events: none; z-index: -1;
+}
+html.tablet .jp-app[data-kbhold="true"][data-layout="tabs"]:not([data-view="code"]) { bottom: var(--keyboard-offset); }
+
+/* Bausteinleiste: nur noch normal ↔ zugeklappt, beides mit gelbem Pfeil (der alte Vergrößern-Knopf ist ausgeblendet) */
+.jp-pane-blocks .jp-panehead [data-ref="blocksLayoutBtn"] { display: none; }
+.jp-blocks-fold { flex: none; width: 36px; height: 28px; margin: 0 8px 0 4px; border-radius: 10px; }
+.jp-blocks-fold .jp-icon { width: 18px; height: 18px; }
+.jp-pane-blocks .jp-panehead { padding-right: 0; }
+
+/* Variablen-Dialog 20 % breiter, damit „String“ im Datentyp-Feld nicht abgeschnitten wird */
+@media (min-width: 700px) {
+    .jp-sheet.is-variable { max-width: min(504px, var(--sheet-cap, 9999px)); }
+}
+
+/* Aufgeklappte Bausteinleiste: Kurzzeichen links neben dem Namen, alles linksbündig */
+.jp-app:not([data-compact="true"]):not([data-btiny="true"]) .jp-blockpanel button.jp-block {
+    display: flex; align-items: center; justify-content: flex-start; gap: 7px; text-align: left; padding-left: 6px;
+}
+.jp-app:not([data-compact="true"]):not([data-btiny="true"]) .jp-blockpanel .jp-block-ico {
+    display: inline-flex; align-items: center; justify-content: center; flex: none; width: 26px;
+    font-family: var(--font-code); font-size: 12.5px; font-weight: 700; letter-spacing: -0.03em; opacity: .9;
+}
+.jp-app:not([data-compact="true"]):not([data-btiny="true"]) .jp-blockpanel .jp-block-ico svg { width: 18px; height: 18px; }
+/* Anderer Text, wo der Name nur das Kurzzeichen wiederholt (// → Kommentar; if, new, for → …) – der Name bleibt Text des Knopfs */
+.jp-app:not([data-compact="true"]):not([data-btiny="true"]) .jp-blockpanel .jp-block-label[data-alt] { font-size: 0; }
+.jp-app:not([data-compact="true"]):not([data-btiny="true"]) .jp-blockpanel .jp-block-label[data-alt]::before { content: attr(data-alt); font-size: 15px; }
+
+/* iPhone: In der Hilfsleiste bleibt nur der Umschalter Bausteine/Zeichen fest; Cursor-, Zeilen- und rechte Knöpfe
+   scrollen mit (Kopien am Anfang bzw. Ende der Reihe). Auf dem iPad bleibt alles wie gehabt. */
+.jp-keybar .jp-phone-only { display: none; }
+html.phone .jp-keybar .jp-phone-group { display: contents; }
+html.phone .jp-keybar-fixed.is-left > :not([data-action="mode"]) { display: none; }
+html.phone .jp-keybar-fixed.is-right { display: none; }
+
+/* ===================================================================================
+   JPadBlox: Theme-Auswahl im Menü „Darstellung“ (nebeneinander, bei Platzmangel waagrecht scrollbar)
+   =================================================================================== */
+.jp-skin-picker { display: flex; gap: 3px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 6px; margin: 2px 0 6px; }
+.jp-skin-picker::-webkit-scrollbar { display: none; }
+.jp-skin-picker button {
+    flex: none; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 54px; padding: 5px 0 4px;
+    border-radius: var(--radius-m); color: var(--ink-2); font-size: 12.5px; border: 2px solid transparent; background: transparent;
+}
+.jp-skin-swatch {
+    display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px;
+    background: var(--sw-bg); color: var(--sw-fg); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.jp-skin-swatch .jp-icon { width: 24px; height: 24px; }
+.jp-skin-picker button[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); font-weight: 700; background: var(--accent-soft); }
+
+/* Hacker hell: weißer Hintergrund, sonst die Hacker-Farben (für Lesbarkeit auf Weiß etwas kräftiger) */
+:root[data-skin="hacker"][data-effective="light"] {
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-2: #EEFBF4;
+    --ink: #06281A;
+    --ink-2: #2C7A54;
+    --line: #B5E6CC;
+    --accent: #00B86E;
+    --accent-soft: #DDF8EA;
+    --accent-ink: #FFFFFF;
+    --marker-soft: rgba(242, 255, 58, 0.35);
+    --danger: #E0106A;
+    --danger-soft: #FDE3EE;
+    --ok: #00B86E;
+    --shadow-lg: 0 0 0 1px #00B86E, 0 0 28px rgba(0, 184, 110, 0.18);
+    --syn-keyword: #E0109F;
+    --syn-type: #0093B0;
+    --syn-string: #8C8200;
+    --syn-number: #D97800;
+    --syn-comment: #6E9C84;
+    --syn-method: #0E9F6E;
+    --syn-field: #4F8F00;
+    --syn-annotation: #9B3FE0;
+    --syn-punct: #5E8A74;
+    color-scheme: light;
+}
+:root[data-skin="hacker"][data-effective="light"] body,
+:root[data-skin="hacker"][data-effective="light"] .jp-app {
+    background:
+        repeating-linear-gradient(0deg, rgba(0, 184, 110, 0.035) 0 1px, transparent 1px 3px),
+        linear-gradient(90deg, rgba(0, 184, 110, 0.07) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(0deg, rgba(0, 184, 110, 0.07) 1px, transparent 1px) 0 0 / 32px 32px,
+        #FFFFFF;
+}
+:root[data-skin="hacker"][data-effective="light"] .jp-pane { border-color: #8FD9B4; box-shadow: 0 0 0 1px rgba(0, 184, 110, 0.06), 0 0 18px -8px rgba(0, 184, 110, 0.35); }
+:root[data-skin="hacker"][data-effective="light"] .jp-pane-side { border-color: #7FD3E0; box-shadow: 0 0 18px -8px rgba(0, 147, 176, 0.35); }
+:root[data-skin="hacker"][data-effective="light"] .jp-topbar .jp-iconbtn:disabled { color: #A7D9C0; }
+:root[data-skin="hacker"][data-effective="light"] .jp-keybar,
+:root[data-skin="hacker"][data-effective="light"] .jp-bottomnav { background: #FFFFFF; }
+:root[data-skin="hacker"][data-effective="light"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:active,
+:root[data-skin="hacker"][data-effective="light"] :is(.jp-blockpanel, .jp-keybar) button.jp-block.is-pressed { color: #FFFFFF; }
+:root[data-skin="hacker"][data-effective="light"] [data-group="klasse"] { --g: #00B86E; }
+:root[data-skin="hacker"][data-effective="light"] [data-group="ablauf"] { --g: #E0109F; }
+:root[data-skin="hacker"][data-effective="light"] [data-group="daten"]  { --g: #0093B0; }
+:root[data-skin="hacker"][data-effective="light"] .jp-editor .cm-content { text-shadow: none; }
+:root[data-skin="hacker"][data-effective="light"] .jp-editor .cm-cursor { border-left-color: rgba(0, 184, 110, 0.55); }
+:root[data-skin="hacker"][data-effective="light"] .jp-filetab.is-active { text-shadow: none; }
+:root[data-skin="hacker"][data-effective="light"] ::selection { background: rgba(0, 184, 110, 0.25); }
+
+/* Pink-Hacker hell: weißer Hintergrund, sonst die Hacker-Farben (für Lesbarkeit auf Weiß etwas kräftiger) */
+:root[data-skin="pink"][data-effective="light"] {
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-2: #FDEEF8;
+    --ink: #2A0620;
+    --ink-2: #7A2C66;
+    --line: #F0BEE2;
+    --accent: #E0109F;
+    --accent-soft: #FDE3F5;
+    --accent-ink: #FFFFFF;
+    --marker-soft: rgba(242, 255, 58, 0.35);
+    --danger: #E0106A;
+    --danger-soft: #FDE3EE;
+    --ok: #E0109F;
+    --shadow-lg: 0 0 0 1px #E0109F, 0 0 28px rgba(224, 16, 159, 0.18);
+    --syn-keyword: #00B86E;
+    --syn-type: #0093B0;
+    --syn-string: #8C8200;
+    --syn-number: #D97800;
+    --syn-comment: #9C6E8E;
+    --syn-method: #C21088;
+    --syn-field: #B0408F;
+    --syn-annotation: #9B3FE0;
+    --syn-punct: #8A5E7C;
+    color-scheme: light;
+}
+:root[data-skin="pink"][data-effective="light"] body,
+:root[data-skin="pink"][data-effective="light"] .jp-app {
+    background:
+        repeating-linear-gradient(0deg, rgba(224, 16, 159, 0.035) 0 1px, transparent 1px 3px),
+        linear-gradient(90deg, rgba(224, 16, 159, 0.07) 1px, transparent 1px) 0 0 / 32px 32px,
+        linear-gradient(0deg, rgba(224, 16, 159, 0.07) 1px, transparent 1px) 0 0 / 32px 32px,
+        #FFFFFF;
+}
+:root[data-skin="pink"][data-effective="light"] .jp-pane { border-color: #E6A0D2; box-shadow: 0 0 0 1px rgba(224, 16, 159, 0.06), 0 0 18px -8px rgba(224, 16, 159, 0.35); }
+:root[data-skin="pink"][data-effective="light"] .jp-pane-side { border-color: #7FD3E0; box-shadow: 0 0 18px -8px rgba(0, 147, 176, 0.35); }
+:root[data-skin="pink"][data-effective="light"] .jp-topbar .jp-iconbtn:disabled { color: #E3B5D5; }
+:root[data-skin="pink"][data-effective="light"] .jp-keybar,
+:root[data-skin="pink"][data-effective="light"] .jp-bottomnav { background: #FFFFFF; }
+:root[data-skin="pink"][data-effective="light"] :is(.jp-blockpanel, .jp-keybar) button.jp-block:active,
+:root[data-skin="pink"][data-effective="light"] :is(.jp-blockpanel, .jp-keybar) button.jp-block.is-pressed { color: #FFFFFF; }
+:root[data-skin="pink"][data-effective="light"] [data-group="klasse"] { --g: #E0109F; }
+:root[data-skin="pink"][data-effective="light"] [data-group="ablauf"] { --g: #00B86E; }
+:root[data-skin="pink"][data-effective="light"] [data-group="daten"]  { --g: #0093B0; }
+:root[data-skin="pink"][data-effective="light"] .jp-editor .cm-content { text-shadow: none; }
+:root[data-skin="pink"][data-effective="light"] .jp-editor .cm-cursor { border-left-color: rgba(224, 16, 159, 0.55); }
+:root[data-skin="pink"][data-effective="light"] .jp-filetab.is-active { text-shadow: none; }
+:root[data-skin="pink"][data-effective="light"] ::selection { background: rgba(224, 16, 159, 0.25); }
+
+/* ---------- Hund: Farbwelt des Demo-Lernpfads „Bello lernt Java“ (Wiesengrün, Abendhimmel) ---------- */
+:root[data-skin="hund"] {
+    --font-ui: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --font-code: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --bg: #f4faf5;
+    --surface: #ffffff;
+    --surface-2: #e5f3ea;
+    --ink: #17302a;
+    --ink-2: #4f6b62;
+    --line: #cfe5d7;
+    --accent: #1f8a6a;
+    --accent-soft: #d4efe3;
+    --accent-ink: #ffffff;
+    --marker: #ffd23f;
+    --marker-ink: #2b1d36;
+    --marker-soft: rgba(255, 210, 63, 0.3);
+    --danger: #c23b3b;
+    --danger-soft: #fbe0e0;
+    --ok: #2f8a4a;
+    --syn-keyword: #8a3bc9;
+    --syn-type: #b2437a;
+    --syn-string: #c2551c;
+    --syn-number: #2b7d4a;
+    --syn-comment: #9a8692;
+    --syn-method: #4b4fd0;
+    --syn-field: #17302a;
+    --syn-punct: #4f6b62;
+    color-scheme: light;
+}
+:root[data-skin="hund"][data-effective="dark"] {
+    --bg: #0f1a17;
+    --surface: #152420;
+    --surface-2: #1c302a;
+    --ink: #e8f5ef;
+    --ink-2: #a9c4ba;
+    --line: #2a4a3f;
+    --accent: #4fd1a5;
+    --accent-soft: #173a30;
+    --accent-ink: #0f1a17;
+    --marker: #ffc35c;
+    --marker-ink: #1a1206;
+    --marker-soft: rgba(255, 195, 92, 0.2);
+    --danger: #ff8a8a;
+    --danger-soft: #452326;
+    --ok: #6fd08b;
+    --syn-keyword: #d6a3ff;
+    --syn-type: #ff8fbf;
+    --syn-string: #ffab78;
+    --syn-number: #7fd69a;
+    --syn-comment: #9b8aa3;
+    --syn-method: #a9adff;
+    --syn-field: #e8f5ef;
+    --syn-punct: #a9c4ba;
+    color-scheme: dark;
+}
+:root[data-skin="hund"] body, :root[data-skin="hund"] .jp-app { background: linear-gradient(180deg, color-mix(in srgb, #5457c4 22%, #f4faf5) 0%, color-mix(in srgb, #c2477a 16%, #f4faf5) 45%, color-mix(in srgb, #f0a12e 18%, #f4faf5) 85%, #f4faf5 100%); }
+:root[data-skin="hund"][data-effective="dark"] body, :root[data-skin="hund"][data-effective="dark"] .jp-app { background: linear-gradient(180deg, color-mix(in srgb, #a8abff 22%, #0f1a17) 0%, color-mix(in srgb, #ff7fae 16%, #0f1a17) 45%, color-mix(in srgb, #ffc35c 18%, #0f1a17) 85%, #0f1a17 100%); }
+:root[data-skin="hund"] .jp-project-name, :root[data-skin="hund"] .jp-drawer-head .jp-brand, :root[data-skin="hund"] .jp-blockgroup h3 { font-family: "Pixelify Sans", var(--font-ui); letter-spacing: 0.02em; }
+:root[data-skin="hund"] .jp-project-name { font-size: 1.15em; }
+:root[data-skin="hund"] .jp-pane { border-color: var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 18px -10px rgba(0, 0, 0, 0.18); }
+:root[data-skin="hund"] .jp-topbar, :root[data-skin="hund"] .jp-keybar, :root[data-skin="hund"] .jp-bottomnav { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+:root[data-skin="hund"] [data-group="klasse"] { --g: #1f8a6a; }
+:root[data-skin="hund"] [data-group="ablauf"] { --g: #c2477a; }
+:root[data-skin="hund"] [data-group="daten"] { --g: #5457c4; }
+:root[data-skin="hund"][data-effective="dark"] [data-group="klasse"] { --g: #4fd1a5; }
+:root[data-skin="hund"][data-effective="dark"] [data-group="ablauf"] { --g: #ff7fae; }
+:root[data-skin="hund"][data-effective="dark"] [data-group="daten"] { --g: #a8abff; }
+
+/* ---------- Schaf: Farbwelt des Lernpfads „Der Schaf-Konstruktor“ (Sonnenaufgang) ---------- */
+:root[data-skin="schaf"] {
+    --font-ui: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    --font-code: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+    --bg: #fff6ef;
+    --surface: #ffffff;
+    --surface-2: #fdebdd;
+    --ink: #2b1d36;
+    --ink-2: #6f5a6c;
+    --line: #f0d5c3;
+    --accent: #e05d26;
+    --accent-soft: #fde0cc;
+    --accent-ink: #ffffff;
+    --marker: #ffd23f;
+    --marker-ink: #2b1d36;
+    --marker-soft: rgba(255, 210, 63, 0.3);
+    --danger: #c23b3b;
+    --danger-soft: #fbe0e0;
+    --ok: #2f8a4a;
+    --syn-keyword: #8a3bc9;
+    --syn-type: #b2437a;
+    --syn-string: #c2551c;
+    --syn-number: #2b7d4a;
+    --syn-comment: #9a8692;
+    --syn-method: #4b4fd0;
+    --syn-field: #2b1d36;
+    --syn-punct: #6f5a6c;
+    color-scheme: light;
+}
+:root[data-skin="schaf"][data-effective="dark"] {
+    --bg: #1a1430;
+    --surface: #231b3c;
+    --surface-2: #2d244d;
+    --ink: #fbeee6;
+    --ink-2: #c8b4c6;
+    --line: #3c305e;
+    --accent: #ff8a4f;
+    --accent-soft: #46283a;
+    --accent-ink: #1a1430;
+    --marker: #ffc35c;
+    --marker-ink: #1a1206;
+    --marker-soft: rgba(255, 195, 92, 0.2);
+    --danger: #ff8a8a;
+    --danger-soft: #452326;
+    --ok: #6fd08b;
+    --syn-keyword: #d6a3ff;
+    --syn-type: #ff8fbf;
+    --syn-string: #ffab78;
+    --syn-number: #7fd69a;
+    --syn-comment: #9b8aa3;
+    --syn-method: #a9adff;
+    --syn-field: #fbeee6;
+    --syn-punct: #c8b4c6;
+    color-scheme: dark;
+}
+:root[data-skin="schaf"] body, :root[data-skin="schaf"] .jp-app { background: linear-gradient(180deg, color-mix(in srgb, #5457c4 22%, #fff6ef) 0%, color-mix(in srgb, #c2477a 16%, #fff6ef) 45%, color-mix(in srgb, #f0a12e 18%, #fff6ef) 85%, #fff6ef 100%); }
+:root[data-skin="schaf"][data-effective="dark"] body, :root[data-skin="schaf"][data-effective="dark"] .jp-app { background: linear-gradient(180deg, color-mix(in srgb, #a8abff 22%, #1a1430) 0%, color-mix(in srgb, #ff7fae 16%, #1a1430) 45%, color-mix(in srgb, #ffc35c 18%, #1a1430) 85%, #1a1430 100%); }
+:root[data-skin="schaf"] .jp-project-name, :root[data-skin="schaf"] .jp-drawer-head .jp-brand, :root[data-skin="schaf"] .jp-blockgroup h3 { font-family: "Pixelify Sans", var(--font-ui); letter-spacing: 0.02em; }
+:root[data-skin="schaf"] .jp-project-name { font-size: 1.15em; }
+:root[data-skin="schaf"] .jp-pane { border-color: var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 18px -10px rgba(0, 0, 0, 0.18); }
+:root[data-skin="schaf"] .jp-topbar, :root[data-skin="schaf"] .jp-keybar, :root[data-skin="schaf"] .jp-bottomnav { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+:root[data-skin="schaf"] [data-group="klasse"] { --g: #e05d26; }
+:root[data-skin="schaf"] [data-group="ablauf"] { --g: #c2477a; }
+:root[data-skin="schaf"] [data-group="daten"] { --g: #5457c4; }
+:root[data-skin="schaf"][data-effective="dark"] [data-group="klasse"] { --g: #ff8a4f; }
+:root[data-skin="schaf"][data-effective="dark"] [data-group="ablauf"] { --g: #ff7fae; }
+:root[data-skin="schaf"][data-effective="dark"] [data-group="daten"] { --g: #a8abff; }
+
+/* Hund und Schaf: der Himmelsverlauf des Hintergrunds auch im Editor */
+:root[data-skin="hund"] .jp-pane-code { background: linear-gradient(180deg, color-mix(in srgb, #5457c4 22%, #f4faf5) 0%, color-mix(in srgb, #c2477a 16%, #f4faf5) 45%, color-mix(in srgb, #f0a12e 18%, #f4faf5) 85%, #f4faf5 100%); }
+:root[data-skin="hund"][data-effective="dark"] .jp-pane-code { background: linear-gradient(180deg, color-mix(in srgb, #a8abff 22%, #0f1a17) 0%, color-mix(in srgb, #ff7fae 16%, #0f1a17) 45%, color-mix(in srgb, #ffc35c 18%, #0f1a17) 85%, #0f1a17 100%); }
+:root[data-skin="hund"] .jp-pane-code :is(.cm-editor, .cm-gutters) { background: transparent; }
+:root[data-skin="hund"] .jp-pane-code .jp-filetab.is-active { background: color-mix(in srgb, var(--surface) 60%, transparent); }
+:root[data-skin="schaf"] .jp-pane-code { background: linear-gradient(180deg, color-mix(in srgb, #5457c4 22%, #fff6ef) 0%, color-mix(in srgb, #c2477a 16%, #fff6ef) 45%, color-mix(in srgb, #f0a12e 18%, #fff6ef) 85%, #fff6ef 100%); }
+:root[data-skin="schaf"][data-effective="dark"] .jp-pane-code { background: linear-gradient(180deg, color-mix(in srgb, #a8abff 22%, #1a1430) 0%, color-mix(in srgb, #ff7fae 16%, #1a1430) 45%, color-mix(in srgb, #ffc35c 18%, #1a1430) 85%, #1a1430 100%); }
+:root[data-skin="schaf"] .jp-pane-code :is(.cm-editor, .cm-gutters) { background: transparent; }
+:root[data-skin="schaf"] .jp-pane-code .jp-filetab.is-active { background: color-mix(in srgb, var(--surface) 60%, transparent); }
+/* Theme-Auswahl: nur noch Vorschaufelder (Name als Tooltip) */
+.jp-skin-picker button { width: auto; padding: 4px; }
+
+/* ===================================================================================
+   JPadBlox: Markier-Modus (Knopf links neben „Zeile einfügen“)
+   =================================================================================== */
+.jp-keybar .jp-mark-only { display: none; }
+.jp-keybar.is-marking .jp-keybar-fixed.is-left .jp-mark-only { display: inline-grid; }
+.jp-keybar.is-marking .jp-keybar-main,
+.jp-keybar.is-marking [data-action="mode"] { display: none; }
+/* iPhone: im Markier-Modus stehen die Tasten fest links (sonst liegen sie in der scrollenden Reihe) */
+html.phone .jp-keybar.is-marking .jp-keybar-fixed.is-left > :not([data-action="mode"]) { display: inline-grid; }
+html.phone .jp-keybar.is-marking .jp-keybar-fixed.is-left { overflow-x: auto; scrollbar-width: none; }
+.jp-keybar.is-marking [data-action="mark"] { background: var(--marker); color: var(--marker-ink); animation: jp-mark-blink 1s steps(1) infinite; }
+@keyframes jp-mark-blink { 50% { background: var(--surface); color: var(--ink); } }
+/* Markierte Zeilen pulsieren */
+.jp-editor .cm-line.jp-mark-line { animation: jp-mark-pulse 1.3s ease-in-out infinite; }
+@keyframes jp-mark-pulse {
+    0%, 100% { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+    50% { background: color-mix(in srgb, var(--accent) 34%, transparent); }
+}
+/* Cursor blinkt im Markier-Modus schneller */
+html.jp-marking .jp-editor .cm-content { animation: jp-caret-fast 0.5s steps(1) infinite; }
+@keyframes jp-caret-fast { 50% { caret-color: transparent; } }
+/* Theme-Auswahl: Vorschaufelder ohne Hintergrund – nur das farbige Symbol */
+.jp-skin-swatch { background: transparent; box-shadow: none; }
+/* Nach dem Ausschneiden: Einfügestelle antippen, dann „Einfügen“ (Ausschneiden ist dann aus) */
+.jp-keybar.is-placing [data-action="cutBlock"] { display: none !important; }
+
+/* Hilfsleiste: Der scrollbare Bereich schnitt den Schatten unter den Tasten ab (Standard, Hund, Schaf) –
+   2 px Platz darunter, links genauso, damit alle Tasten gleich hoch bleiben */
+.jp-keybar-main, .jp-keybar > .jp-keybar-fixed.is-left { padding-bottom: 2px; }
+/* iPad hochkant (Reiter-Layout): Haltepunkt, Info und Tastatur-Knopf scrollen mit den Zeichen mit
+   (Kopien am Ende der Reihe), damit mehr Zeichen Platz haben; links bleibt alles fest */
+html:not(.phone) .jp-app[data-layout="tabs"] .jp-keybar .jp-phone-right { display: contents; }
+html:not(.phone) .jp-app[data-layout="tabs"] .jp-keybar .jp-keybar-fixed.is-right { display: none; }
+
+/* Schmale Fenster (z. B. iPad hochkant): „Schritt“ nur als Symbol, dafür bleibt „Code formatieren“ sichtbar */
+.jp-app:not([data-wide="true"]) .jp-topbar .jp-stepbtn > span { display: none; }
+.jp-app:not([data-wide="true"]) .jp-topbar .jp-stepbtn { padding: 0 10px; }
+/* Projekttitel gibt in schmalen Fenstern Platz ab (Name und Status werden mit … gekürzt) */
+.jp-project { flex: 0 1 auto; }
+.jp-project > .jp-project-name, .jp-project > .jp-project-state { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-app:not([data-wide="true"]) .jp-project-name { max-width: 100%; }
+
+/* ===================================================================================
+   JPadBlox: Markier-Modus – Kopieren und Spalten markieren (Rechteck wie in vim)
+   =================================================================================== */
+.jp-keybar.is-placing [data-action="copyBlock"] { display: none !important; }
+.jp-keybar .jp-col-only { display: none !important; }
+.jp-keybar.is-marking-cols .jp-keybar-fixed.is-left .jp-col-only { display: inline-grid !important; }
+/* Kippschalter rechts vom Trennstrich – nur beim Festlegen der Markierung */
+.jp-keybar-markextra { display: none; align-items: center; padding: 0 6px; flex: none; }
+.jp-keybar.is-marking:not(.is-placing) .jp-keybar-markextra { display: flex; }
+/* Umschalter als Segment-Schalter im Stil der Tasten: Mulde mit zwei Feldern, das gewählte Feld ist eine
+   erhabene Taste (Standard, Hund, Schaf) bzw. ein farbig umrandetes Feld (Flat, Hacker, Pink) */
+.jp-keybar button.jp-colswitch {
+    display: inline-flex; align-items: stretch; gap: 0; width: auto; min-width: 0; padding: 3px;
+    font-family: var(--font-ui); font-size: 14.5px; font-weight: 600; letter-spacing: .01em;
+    background: color-mix(in srgb, var(--ink-2) 13%, transparent); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .12);
+    color: var(--ink-2);
+}
+.jp-keybar button.jp-colswitch:active, .jp-keybar button.jp-colswitch.is-pressed { background: color-mix(in srgb, var(--ink-2) 18%, transparent); color: var(--ink-2); }
+.jp-colswitch .jp-seg {
+    display: inline-flex; align-items: center; gap: 7px; padding: 0 13px 0 10px;
+    border-radius: calc(var(--radius-s) - 3px); transition: background .18s, color .18s, box-shadow .18s;
+}
+.jp-colswitch .jp-seg .jp-icon { width: 19px; height: 19px; }
+.jp-colswitch[aria-checked="false"] .jp-seg-rows,
+.jp-colswitch[aria-checked="true"] .jp-seg-cols { background: var(--surface); color: var(--accent); box-shadow: 0 1px 0 rgba(0, 0, 0, .18), 0 1px 3px rgba(0, 0, 0, .08); }
+:root[data-effective="dark"] .jp-keybar button.jp-colswitch { background: rgba(0, 0, 0, .28); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .3); }
+:root:is([data-skin="flat"], [data-skin="hacker"], [data-skin="pink"]) .jp-keybar button.jp-colswitch { background: transparent; box-shadow: none; }
+:root:is([data-skin="flat"], [data-skin="hacker"], [data-skin="pink"]) .jp-colswitch[aria-checked="false"] .jp-seg-rows,
+:root:is([data-skin="flat"], [data-skin="hacker"], [data-skin="pink"]) .jp-colswitch[aria-checked="true"] .jp-seg-cols {
+    background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+:root[data-skin="flat"][data-effective="dark"] .jp-colswitch .jp-seg { color: #fff; }
+/* Pulsierendes Rechteck (Spaltenmodus) */
+.jp-markrect-layer .jp-markrect {
+    border-radius: 3px; animation: jp-mark-pulse 1.3s ease-in-out infinite;
+    outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.jp-markrect-layer .jp-markrect.is-empty { background: var(--accent); outline: none; animation: jp-mark-blink-bar 1s steps(1) infinite; }
+@keyframes jp-mark-blink-bar { 50% { opacity: .25; } }
+/* Spaltenmodus: der Finger zieht das Rechteck auf statt zu scrollen; kein normaler Cursor */
+html.jp-marking-cols .jp-editor :is(.cm-scroller, .cm-content) { touch-action: none; -webkit-user-select: none; user-select: none; }
+html.jp-marking-cols .jp-editor .cm-content { caret-color: transparent; animation: none; }
+html.jp-marking-cols .jp-editor .cm-cursorLayer { display: none; }
+/* iPhone: Umschalter schmaler – nur die Symbole */
+html.phone .jp-colswitch .jp-seg > span { display: none; }
+html.phone .jp-colswitch .jp-seg { padding: 0 10px; }
+html.phone .jp-keybar-markextra { padding: 0 4px; }
+
+/* Keine Ligaturen in Code (JetBrains Mono macht sonst aus <= ein ≤) – auch in Dialogfeldern und Vorschauen */
+.cm-editor, .jp-app code, .jp-app pre, .jp-sheet code, .jp-sheet pre { font-variant-ligatures: none; font-feature-settings: "calt" 0, "liga" 0; }

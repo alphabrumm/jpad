@@ -1,8 +1,13 @@
 import { icon } from "./Icons.js";
-import { TouchEditor } from "./TouchEditor.js";
+import { TouchEditor, smartSemicolon } from "./TouchEditor.js";
 import { LanguageBridge } from "./LanguageBridge.js";
+import { BLOCKS, insertBlock, blockRowHtml, BlockContext } from "./Blocks.js";
+import type { EditorView } from "@codemirror/view";
+import { hasNextSnippetField, nextSnippetField } from "@codemirror/autocomplete";
 
-type Key = { label: string, insert?: string, action?: string, aria?: string, tip?: string, help?: string, wide?: boolean };
+type Key = { label: string, insert?: string, action?: string, aria?: string, tip?: string, help?: string, wide?: boolean,
+    /** in Eingabefeldern (Bedingung im if-Dialog) ausgeblendet */
+    noField?: boolean };
 
 /**
  * Hilfsleiste über der Bildschirmtastatur mit den Zeichen, die auf der
@@ -10,10 +15,10 @@ type Key = { label: string, insert?: string, action?: string, aria?: string, tip
  */
 const KEYS: Key[] = [
     { label: icon("tab"), action: "tab", aria: "Einrücken", tip: "Einrücken (Tabulator)", help: "tab" },
-    { label: "{ }", insert: "{§}", tip: "Geschweifte Klammern { } einfügen – für Klassen-, Methoden- und Blockrümpfe", help: "braces" },
+    { label: "{ }", noField: true, insert: "{§}", tip: "Geschweifte Klammern { } einfügen – für Klassen-, Methoden- und Blockrümpfe", help: "braces" },
     { label: "( )", insert: "(§)", tip: "Runde Klammern ( ) einfügen – für Parameter und Bedingungen", help: "parens" },
-    { label: ";", insert: ";", tip: "Strichpunkt ; – beendet eine Anweisung", help: "semicolon" },
-    { label: "=", insert: " = ", tip: "Zuweisung = – speichert einen Wert in einer Variablen", help: "assign" },
+    { label: ";", noField: true, insert: ";", tip: "Strichpunkt ; – beendet eine Anweisung", help: "semicolon" },
+    { label: "=", insert: " = ", tip: "Zuweisung = – speichert einen Wert in einer Variablen (am Zeilenende mit Strichpunkt dahinter)", help: "assign" },
     { label: "\" \"", insert: "\"§\"", tip: "Anführungszeichen \" \" einfügen – für Text (String)", help: "quotes" },
     { label: ".", insert: ".", tip: "Punkt . – ruft eine Methode oder ein Attribut eines Objekts auf", help: "dot" },
     { label: "[ ]", insert: "[§]", tip: "Eckige Klammern [ ] einfügen – für Arrays", help: "brackets" },
@@ -42,10 +47,20 @@ function simpleKeyboardMode(): boolean {
     }
 }
 
+/** JPadBlox: Im Hochformat und auf dem Handy (ohne Bausteinspalte) zeigt die Hilfsleiste wahlweise
+ *  Zeichen oder Bausteine (wird gemerkt). Im Querformat stehen die Bausteine links, die Leiste zeigt Zeichen. */
+type BarMode = "chars" | "blocks";
+function loadMode(): BarMode {
+    try { return localStorage.getItem("jpadblox.barMode") == "blocks" ? "blocks" : "chars"; } catch (e) { return "chars"; }
+}
+
 export class KeyBar {
 
     el: HTMLElement;
     private editorFocused = false;
+    private mode: BarMode = loadMode();
+    /** von App gesetzt, sobald alles bereit ist */
+    blockContext: BlockContext | null = null;
 
     constructor(root: HTMLElement, private editor: TouchEditor, private bridge: LanguageBridge,
         private showInfo: (html: string | null) => void) {
@@ -54,22 +69,48 @@ export class KeyBar {
         this.el.className = "jp-keybar";
         this.el.setAttribute("role", "toolbar");
         this.el.setAttribute("aria-label", "Sonderzeichen");
+        // Cursor-, Zeilen- und rechte Knöpfe: auf dem iPad fest am Rand, auf dem iPhone (wenig Platz) zusätzlich als
+        // Kopie am Anfang bzw. Ende der scrollbaren Reihe (die festen sind dort ausgeblendet, siehe CSS html.phone)
+        const navKeys = `
+                <button data-action="left" class="jp-key-nav" data-help="left" aria-label="Cursor nach links" data-tip="Cursor ein Zeichen nach links">${icon("left")}</button>
+                <button data-action="right" class="jp-key-nav" data-help="right" aria-label="Cursor nach rechts" data-tip="Cursor ein Zeichen nach rechts">${icon("right")}</button>
+                <button data-action="markUp" class="jp-col-only" aria-label="Rechteck: Ecke eine Zeile nach oben" data-tip="Spalten markieren: Ecke eine Zeile nach oben">${icon("lineUp")}</button>
+                <button data-action="markDown" class="jp-col-only" aria-label="Rechteck: Ecke eine Zeile nach unten" data-tip="Spalten markieren: Ecke eine Zeile nach unten">${icon("lineDown")}</button>
+                <button data-action="mark" class="jp-key-mark" aria-label="Markier-Modus" aria-pressed="false" data-tip="Markier-Modus: Die Zeile mit dem Cursor ist der Anfang. Tippe auf eine andere Zeile – alles dazwischen ist markiert. Dann ausschneiden, Zeilen löschen oder an anderer Stelle einfügen.">${icon("markMode")}</button>
+                <button data-action="lineAdd" class="jp-key-line" aria-label="Neue Zeile einfügen" data-tip="Neue, leere Zeile unter der Zeile mit dem Cursor einfügen (richtig eingerückt)">${icon("lineAdd")}</button>
+                <button data-action="lineDelete" class="jp-key-line" aria-label="Zeile löschen" data-tip="Zeile, in der der Cursor steht, löschen">${icon("lineDelete")}</button>
+                <button data-action="cutBlock" class="jp-mark-only" aria-label="Markierten Block ausschneiden" data-tip="Markierten Block ausschneiden – danach Einfügestelle antippen und einfügen">${icon("cut")}</button>
+                <button data-action="copyBlock" class="jp-mark-only" aria-label="Markierten Block kopieren" data-tip="Markierten Block kopieren – danach Einfügestelle antippen und einfügen">${icon("copy")}</button>
+                <button data-action="pasteBlock" class="jp-mark-only" aria-label="Einfügen" data-tip="Text aus der Zwischenablage einfügen (ganze Zeilen vor der Zeile mit dem Cursor)">${icon("paste")}</button>`;
+        const rightKeys = `
+                <button data-action="breakpoint" data-help="breakpoint" aria-label="Haltepunkt in dieser Zeile setzen oder entfernen" data-tip="Haltepunkt in dieser Zeile setzen oder entfernen – das Programm hält vor der Zeile an" class="jp-key-breakpoint">${icon("breakpoint")}</button>
+                <button data-action="info" data-help="info" aria-label="Info zur Stelle am Cursor" data-tip="Info zu dem Namen, auf dem der Cursor steht">${icon("info")}</button>
+                <button data-action="hide" data-help="hide" aria-label="Tastatur ausblenden" data-tip="Bildschirmtastatur ausblenden">${icon("keyboardDown")}</button>`;
         this.el.innerHTML = `
             <div class="jp-keybar-fixed is-left">
-                <button data-action="left" data-help="left" aria-label="Cursor nach links" data-tip="Cursor ein Zeichen nach links">${icon("left")}</button>
-                <button data-action="right" data-help="right" aria-label="Cursor nach rechts" data-tip="Cursor ein Zeichen nach rechts">${icon("right")}</button>
+                <button data-action="mode" class="jp-key-mode" aria-label="Zwischen Bausteinen und Sonderzeichen umschalten" data-tip="Umschalten: Code-Bausteine (class, Methode, if, for …) oder Sonderzeichen ({ } ( ) ; = …)">${icon("blocks", "jp-mode-blocks")}<span class="jp-mode-chars">{ }</span></button>
+${navKeys}
+            </div>
+            <div class="jp-keybar-markextra">
+                <button data-action="colToggle" class="jp-colswitch" role="switch" aria-checked="false" aria-label="Spalten statt Zeilen markieren" data-tip="Kippschalter: ganze Zeilen markieren oder nur Spalten (ein Rechteck – mit dem Finger aufziehen)"><span class="jp-seg jp-seg-rows">${icon("selRows")}<span>Zeilen</span></span><span class="jp-seg jp-seg-cols">${icon("selCols")}<span>Spalten</span></span></button>
             </div>
             <div class="jp-keybar-main">
             <div class="jp-keybar-scroll">
-                ${KEYS.map((k, i) => `<button data-key="${i}" ${k.aria ? `aria-label="${k.aria}"` : ""} ${k.tip ? `data-tip="${k.tip.replace(/"/g, "&quot;")}"` : ""} ${k.help ? `data-help="${k.help}"` : ""}>${k.label}</button>`).join("")}
+                <span class="jp-phone-only jp-phone-group">${navKeys}</span>
+                ${KEYS.map((k, i) => `<button data-key="${i}" ${k.noField ? "data-nofield" : ""} ${k.aria ? `aria-label="${k.aria}"` : ""} ${k.tip ? `data-tip="${k.tip.replace(/"/g, "&quot;")}"` : ""} ${k.help ? `data-help="${k.help}"` : ""}>${k.label}</button>`).join("")}
+                <span class="jp-phone-only jp-phone-group jp-phone-right">${rightKeys}</span>
+            </div>
+            <div class="jp-keybar-scroll jp-blocks-scroll">
+                <span class="jp-phone-only jp-phone-group">${navKeys}</span>
+                ${blockRowHtml()}
+                <span class="jp-phone-only jp-phone-group jp-phone-right">${rightKeys}</span>
             </div>
             <div class="jp-keybar-fixed is-right">
-                <button data-action="breakpoint" data-help="breakpoint" aria-label="Haltepunkt in dieser Zeile setzen oder entfernen" data-tip="Haltepunkt in dieser Zeile setzen oder entfernen – das Programm hält vor der Zeile an" class="jp-key-breakpoint">${icon("breakpoint")}</button>
-                <button data-action="info" data-help="info" aria-label="Info zur Stelle am Cursor" data-tip="Info zu dem Namen, auf dem der Cursor steht">${icon("info")}</button>
-                <button data-action="hide" data-help="hide" aria-label="Tastatur ausblenden" data-tip="Bildschirmtastatur ausblenden">${icon("keyboardDown")}</button>
+${rightKeys}
             </div>
             </div>`;
         root.appendChild(this.el);
+        this.applyMode();
 
         // Fokus im Editor behalten, sonst schließt sich die Tastatur
         // (wie qPad) auch „mousedown“ – das reicht Safari nach dem Fingertipp nach und verschiebt sonst den Fokus
@@ -99,7 +140,7 @@ export class KeyBar {
             if (!b || e.touches.length > 1) { tap?.b.classList.remove("is-pressed"); tap = null; return; }
             if (!inScroller(b)) e.preventDefault();
             const t = e.touches[0];
-            tap = { b, x: t.clientX, y: t.clientY, moved: false, hadFocus: this.editor.view.hasFocus };
+            tap = { b, x: t.clientX, y: t.clientY, moved: false, hadFocus: this.target.hasFocus };
             b.classList.add("is-pressed");
         }, { passive: false });
         this.el.addEventListener("touchmove", e => {
@@ -119,7 +160,7 @@ export class KeyBar {
             e.preventDefault();
             t.b.click();
             // Falls Safari den Fokus doch genommen hat: zurückgeben, solange der Finger-Gestus noch gilt
-            if (t.hadFocus && !this.editor.view.hasFocus && t.b.dataset.action != "hide") this.editor.view.focus();
+            if (t.hadFocus && !this.target.hasFocus && t.b.dataset.action != "hide") this.target.focus();
         }, { passive: false });
         this.el.addEventListener("touchcancel", () => { tap?.b.classList.remove("is-pressed"); tap = null; });
 
@@ -197,8 +238,18 @@ export class KeyBar {
                     if (el.scrollTop) el.scrollTop = 0;
                 }
             };
+            /*
+             * Nur nach einem Tipp (der die Tastatur öffnet) – nicht nach einem Wischen zum Scrollen: Sonst sprang
+             * der Editor nach einem Schwung am Ende des Scrollens zurück zum Cursor (meist ganz nach oben).
+             */
+            let startX = 0, startY = 0;
+            this.editor.view.dom.addEventListener("touchmove", e => {
+                const t = e.touches[0];
+                if (t && Math.hypot(t.clientX - startX, t.clientY - startY) > 10) clearTimeout(lateTimer);
+            }, { capture: true, passive: true });
             this.editor.view.dom.addEventListener("touchstart", e => {
                 if (e.touches.length != 1 || document.documentElement.classList.contains("keyboard-open")) return;
+                startX = e.touches[0].clientX; startY = e.touches[0].clientY;
                 clearTimeout(lateTimer);
                 lateTimer = setTimeout(() => {
                     // 1. Den von iOS nach oben geschobenen Ausschnitt zurück an den Seitenanfang
@@ -214,7 +265,7 @@ export class KeyBar {
                             if (vv.offsetTop > 1 || window.scrollY > 1) resetScroll();
                             update(true);
                             this.editor.view.requestMeasure();
-                            requestAnimationFrame(() => requestAnimationFrame(() => this.editor.revealCursorInside()));
+                            requestAnimationFrame(() => requestAnimationFrame(() => { if (this.editor.view.hasFocus) this.editor.revealCursorInside(); }));
                         }, 350);
                     }));
                 }, 500);
@@ -222,24 +273,169 @@ export class KeyBar {
         }
     }
 
+    // ------------------------------------------------ Eingabefeld (Bedingung im if-Dialog)
+
+    /** Eingabefeld mit Fokus (z. B. Bedingung im if-Dialog): Die Leiste schreibt dann dorthin */
+    private field: EditorView | null = null;
+
+    /** Ziel der Tasten: das zuletzt benutzte Eingabefeld eines offenen Dialogs, sonst der Editor */
+    private get target(): EditorView { return this.field ?? this.editor.view; }
+
+    setField(view: EditorView | null) {
+        this.field = view;
+        this.el.classList.toggle("is-field", !!view);
+        document.documentElement.classList.toggle("field-keys", !!view);
+    }
+
+    /** Feld wird geschlossen: Leiste schreibt wieder in den Editor */
+    clearField(view: EditorView) {
+        if (this.field == view) this.setField(null);
+    }
+
+    /** Text an der Cursorstelle des Ziels einfügen; § markiert die Cursorposition danach */
+    private insertText(text: string) {
+        if (!this.field) { this.editor.insert(text); return; }
+        const view = this.field;
+        let cursorDelta = text.indexOf("§");
+        if (cursorDelta >= 0) text = text.replace("§", ""); else cursorDelta = text.length;
+        const r = view.state.selection.main;
+        view.dispatch({ changes: { from: r.from, to: r.to, insert: text }, selection: { anchor: r.from + cursorDelta }, userEvent: "input.type", scrollIntoView: true });
+    }
+
     private activate(b: HTMLElement) {
-        if (b.dataset.key != null) {
+        if (b.dataset.block != null) {
+            if (this.blockContext) insertBlock(this.blockContext, BLOCKS[parseInt(b.dataset.block)]);
+        } else if (b.dataset.key != null) {
             const k = KEYS[parseInt(b.dataset.key)];
-            if (k.action == "tab") this.editor.indentMore();
-            else if (k.insert) this.editor.insert(k.insert);
+            if (k.action == "tab") {
+                // Im Feld: zur nächsten Eingabestelle (z. B. Parameter von equals(…)), sonst nichts
+                if (this.field) { if (hasNextSnippetField(this.field.state)) nextSnippetField(this.field); }
+                else this.editor.indentMore();
+            }
+            else if (k.label == "=" && !this.field && this.restOfLineEmpty()) this.editor.insert(" = §;");   // meist folgt ein Semikolon
+            else if (k.label == "+") this.insertSpaced("+");
+            // Strichpunkt im Editor: ans Zeilenende, dann neue Zeile (im for-Kopf, in Text oder Kommentar normal)
+            else if (k.label == ";" && !this.field) { if (!smartSemicolon(this.editor.view)) this.editor.insert(";"); }
+            // In Bedingungen: Vergleichs- und Verknüpfungszeichen mit genau einem Leerzeichen davor und danach
+            else if (this.field && ["<", ">", "&&", "||", "==", "%"].includes(k.label)) this.insertSpaced(k.label);
+            else if (k.insert) this.insertText(k.insert);
         } else if (b.dataset.action) {
             this.runAction(b.dataset.action);
         }
+        if (this.field && !this.field.hasFocus && b.dataset.action != "hide") this.field.focus();
+    }
+
+    /**
+     * Operator mit genau einem Leerzeichen davor und einem danach einfügen: a| → a + |
+     * (vorhandene Leerzeichen links vom Cursor werden auf eines gekürzt; am Zeilenanfang kein Leerzeichen davor)
+     */
+    private insertSpaced(op: string) {
+        const view = this.target, st = view.state, sel = st.selection.main;
+        const line = st.doc.lineAt(sel.from);
+        const before = st.sliceDoc(line.from, sel.from);
+        const trimmed = before.replace(/[ \t]+$/, "");
+        const from = line.from + trimmed.length;
+        const lead = trimmed.trim() == "" ? "" : " ";
+        const nextIsSpace = st.sliceDoc(sel.to, sel.to + 1) == " ";
+        const insert = (trimmed.trim() == "" ? before : lead) + op + (nextIsSpace ? "" : " ");
+        const start = trimmed.trim() == "" ? line.from : from;
+        view.dispatch({
+            changes: { from: start, to: sel.to, insert },
+            selection: { anchor: start + insert.length + (nextIsSpace ? 1 : 0) },
+            userEvent: "input.type", scrollIntoView: true
+        });
+    }
+
+    /** Steht rechts vom Cursor in dieser Zeile nichts mehr? */
+    private restOfLineEmpty(): boolean {
+        const st = this.editor.view.state, sel = st.selection.main;
+        return st.sliceDoc(sel.to, st.doc.lineAt(sel.to).to).trim() == "";
+    }
+
+    // ------------------------------------------------ Markier-Modus (Logik in TouchEditor)
+
+    private setMarking(on: boolean) {
+        if (on) this.editor.startMarking(); else this.editor.stopMarking();
+        this.renderMarking();
+    }
+
+    private renderMarking() {
+        const on = this.editor.marking;
+        this.el.classList.toggle("is-marking", on);
+        this.el.classList.toggle("is-placing", on && this.editor.markPhase == "cut");
+        this.el.querySelectorAll<HTMLElement>('[data-action="mark"]').forEach(b => b.setAttribute("aria-pressed", String(on)));
+        // Beim Festlegen des Blocks verschieben ← → die Endzeile: dann als Pfeile hoch/runter anzeigen
+        const cols = on && this.editor.markPhase == "select" && this.editor.markColumns;
+        this.el.classList.toggle("is-marking-cols", cols);
+        this.el.querySelectorAll<HTMLElement>('[data-action="colToggle"]').forEach(b => b.setAttribute("aria-checked", String(cols)));
+        const vertical = on && this.editor.markPhase == "select" && !cols;
+        const navState = vertical ? "v" : cols ? "c" : "n";
+        if (this.el.dataset.navState == navState) return;
+        this.el.dataset.navState = navState;
+        this.el.querySelectorAll<HTMLElement>('[data-action="left"], [data-action="right"]').forEach(b => {
+            const left = b.dataset.action == "left";
+            b.innerHTML = icon(vertical ? (left ? "lineUp" : "lineDown") : (left ? "left" : "right"));
+            b.setAttribute("aria-label", vertical ? (left ? "Endzeile eine Zeile nach oben" : "Endzeile eine Zeile nach unten") : cols ? (left ? "Ecke eine Spalte nach links" : "Ecke eine Spalte nach rechts") : (left ? "Cursor nach links" : "Cursor nach rechts"));
+            b.dataset.tip = vertical ? (left ? "Markierung: Endzeile eine Zeile nach oben" : "Markierung: Endzeile eine Zeile nach unten")
+                : cols ? (left ? "Spalten markieren: Ecke eine Spalte nach links" : "Spalten markieren: Ecke eine Spalte nach rechts")
+                : (left ? "Cursor ein Zeichen nach links" : "Cursor ein Zeichen nach rechts");
+        });
     }
 
     private async runAction(action: string) {
         switch (action) {
-            case "left": this.editor.moveCursor(-1); break;
-            case "right": this.editor.moveCursor(1); break;
+            case "mark":
+                this.setMarking(!this.editor.marking);
+                break;
+            case "colToggle":
+                this.editor.setMarkColumns(!this.editor.markColumns);
+                this.renderMarking();
+                break;
+            case "markUp": case "markDown":
+                this.editor.moveMarkEnd(action == "markUp" ? -1 : 1);
+                break;
+            case "cutBlock": {
+                // Spaltenblöcke nicht formatieren – das würde die Spalten verschieben
+                const cols = this.editor.markColumns;
+                if (this.editor.cutMarked() && !cols) await this.blockContext?.format();
+                this.renderMarking();
+                break;
+            }
+            case "copyBlock":
+                this.editor.copyMarked();
+                this.renderMarking();
+                break;
+            case "pasteBlock":
+                if (this.editor.pasteMarked() == "lines") await this.blockContext?.format();
+                this.renderMarking();
+                break;
+            case "mode":
+                this.mode = this.mode == "blocks" ? "chars" : "blocks";
+                try { localStorage.setItem("jpadblox.barMode", this.mode); } catch (e) { }
+                this.applyMode();
+                break;
+            case "lineAdd": this.editor.insertLine(); break;
+            case "lineDelete": if (this.field || !this.editor.deleteMarked()) this.editor.deleteLine(); break;
+            case "left": case "right": {
+                // Markier-Modus: Endzeile bzw. Einfügezeile eine Zeile nach oben/unten
+                if (!this.field && this.editor.moveMarkCol(action == "left" ? -1 : 1)) break;
+                if (!this.field && this.editor.moveMarkEnd(action == "left" ? -1 : 1)) break;
+                const v = this.target, d = action == "left" ? -1 : 1;
+                const head = Math.max(0, Math.min(v.state.doc.length, v.state.selection.main.head + d));
+                v.dispatch({ selection: { anchor: head }, scrollIntoView: true });
+                break;
+            }
             case "info": this.showInfo(await this.bridge.hover(this.editor.getCursorOffset())); break;
-            case "hide": this.editor.view.contentDOM.blur(); break;
+            case "hide": this.target.contentDOM.blur(); break;
             case "breakpoint": this.editor.onToggleBreakpoint?.(this.editor.getCursorLine()); break;
         }
+    }
+
+    private applyMode() {
+        this.el.dataset.mode = this.mode;
+        this.el.querySelector(".jp-keybar-main")?.scrollTo({ left: 0 });
+        const btn = this.el.querySelector<HTMLElement>('[data-action="mode"]');
+        btn?.setAttribute("aria-pressed", String(this.mode == "blocks"));
     }
 
     setEditorFocused(focused: boolean) {

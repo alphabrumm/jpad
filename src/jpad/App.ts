@@ -1,3 +1,4 @@
+import { createConditionField } from "./ConditionField.js";
 import jQuery from "jquery";
 import * as monaco from 'monaco-editor';
 import { JPadMain } from "./JPadMain.js";
@@ -5,12 +6,15 @@ import { TouchEditor } from "./TouchEditor.js";
 import { LanguageBridge, escapeHtml } from "./LanguageBridge.js";
 import { ProjectInfo, ProjectStore, STARTER_FILES, ProjectFile } from "./ProjectStore.js";
 import { icon } from "./Icons.js";
+import { OwnNames, ownNames, declaredMembers } from "./CompletionOrder.js";
 import { Dialogs } from "./Dialogs.js";
 import { KeyBar } from "./KeyBar.js";
+import { blockPanelHtml, wireBlockPanel, BlockContext } from "./Blocks.js";
 import { DiagramView } from "./Diagram.js";
 import { TouchTips } from "./TouchTips.js";
 import { ThemeManager } from "../client/main/gui/ThemeManager.js";
 import { GUIFile } from "../client/workspace/File.js";
+import { TokenType } from "../compiler/java/TokenType.js";
 import { JavaLanguage } from "../compiler/java/JavaLanguage.js";
 import { SchedulerState } from "../compiler/common/interpreter/SchedulerState.js";
 import { WorkspaceExporter } from "../client/workspace/WorkspaceImporterExporter.js";
@@ -30,6 +34,38 @@ function isHelperMarker(m: monaco.editor.IMarker): boolean {
 type View = "code" | "lernpfad" | "output" | "variables" | "diagram" | "problems";
 type SideView = "lernpfad" | "output" | "variables" | "diagram" | "problems";
 type ThemeChoice = "auto" | "light" | "dark";
+type Skin = "default" | "flat" | "hacker" | "pink" | "hund" | "schaf";
+
+/** Schriften der Spaß-Themes (nur online; ohne Netz greifen die Ersatzschriften). */
+function loadSkinFonts() {
+    if (document.getElementById("jp-skin-fonts")) return;
+    const link = document.createElement("link");
+    link.id = "jp-skin-fonts";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=Share+Tech+Mono"
+        + "&family=Atkinson+Hyperlegible:wght@400;700&family=Pixelify+Sans:wght@500;700&display=swap";
+    document.head.appendChild(link);
+}
+
+/** JPadBlox: Themes für die Auswahl im Menü (bg/fg: Farben des kleinen Vorschau-Felds) */
+const SKINS: { id: string, label: string, icon: string, tip: string, bg: string, fg: string }[] = [
+    { id: "default", label: "Standard", icon: "palette", tip: "Standard-Aussehen von JPad", bg: "#F3F5F9", fg: "#3157F5" },
+    { id: "hund", label: "Hund", icon: "dog", tip: "Hund: Farben des Demo-Lernpfads „Bello lernt Java“", bg: "#e5f3ea", fg: "#1f8a6a" },
+    { id: "schaf", label: "Schaf", icon: "sheep", tip: "Schaf: Farben des Lernpfads „Der Schaf-Konstruktor“", bg: "#fdebdd", fg: "#e05d26" },
+    { id: "flat", label: "Flach", icon: "hacker", tip: "Flaches Theme: klare Linien in Weiß und Blau", bg: "#FFFFFF", fg: "#0050F0" },
+    { id: "hacker", label: "Hacker", icon: "hacker", tip: "Hacker-Theme: Neon-Grün, feine Linien, spitze Ecken", bg: "#FFFFFF", fg: "#00B86E" },
+    { id: "pink", label: "Pink", icon: "hacker", tip: "Pink-Hacker-Theme: wie Hacker, aber in Pink", bg: "#FFFFFF", fg: "#E0109F" },
+];
+
+/**
+ * JPadBlox: ganz breite Bausteinleiste (Knopf „Vergrößern“ im Kopf „Bausteine“). Derzeit abgeschaltet: Die Leiste
+ * hat nur noch zwei Breiten, normal (Namen) und zugeklappt (Symbole), umgeschaltet mit dem gelben Pfeil.
+ */
+const BLOCKS_WIDE_ENABLED = false;
+
+/** JPadBlox: Aufteilung der drei Spalten (siehe applyLayout) */
+type ViewMode = "normal" | "editorWide" | "editorFull" | "infoWide" | "infoFull";
+type ViewState = { mode: ViewMode, blocksWide: boolean, before?: { mode: ViewMode, blocksWide: boolean } };
 
 const SPEEDS: { label: string, value: number | "max" }[] = [
     { label: "Zeitlupe", value: 2 },
@@ -62,6 +98,7 @@ export class App {
     view: View = "code";
     sideView: SideView = "output";
     lernpfadHtml: string | null = null;
+    private applyLayout: () => void = () => { };
     private lernpfadMessageHandler: ((ev: MessageEvent) => void) | null = null;
     errorCount = 0;
     modifiedSaveTimer: any;
@@ -79,7 +116,12 @@ export class App {
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => this.applyTheme(this.getThemeChoice()));
 
         await this.store.open();
-        const linkMessage = await this.openFromLink();
+        // Allererster Start (noch kein Projekt, noch nie begrüßt): Demo-Lernpfad öffnen und Willkommen zeigen
+        let firstRun = false;
+        try { firstRun = !localStorage.getItem("jpadblox.welcomed") && this.store.list().length == 0; } catch (e) { }
+        let linkMessage = await this.openFromLink(firstRun && !/[?&](projekt|lernpfad)=/.test(location.search)
+            ? { projekt: null, lernpfad: "learn/demo/Lernpfad-Bello.html" } : undefined);
+        if (firstRun) linkMessage = linkMessage?.error ? linkMessage : undefined;   // statt „geöffnet“ kommt das Willkommen
         this.project = this.store.ensureCurrent();
 
         this.buildShell();
@@ -107,11 +149,24 @@ export class App {
         this.bridge = new LanguageBridge(<JavaLanguage>this.main.getCurrentProgrammingLanguage(),
             () => this.main.getActiveFile()?.getMonacoModel());
         this.bridge.onAfterCompletion = () => this.updateSignatureSoon();
+        // JPadBlox: eigene Symbole zuerst, Bibliothek und Geerbtes zugeklappt (CompletionOrder.ts)
+        let ownCache: { at: number, names: OwnNames } | null = null;
+        this.bridge.ordering = {
+            ownNames: () => {
+                if (!ownCache || Date.now() - ownCache.at > 1500) ownCache = { at: Date.now(), names: ownNames(this.main) };
+                return ownCache.names;
+            },
+            declaredMembers: (model, dotOffset) => declaredMembers(this.main, model, dotOffset)
+        };
 
         this.editor = new TouchEditor(this.el.editorHost, this.bridge, {
             onCursorActivity: () => this.updateSignatureSoon(),
             onDocChanged: () => this.markModified(),
-            onFocusChanged: (focused) => this.keyBar.setEditorFocused(focused),
+            onFocusChanged: (focused) => {
+                this.keyBar.setEditorFocused(focused);
+                // Tastatur doch zugeklappt (oder anderswo getippt): geparkten Editor wieder normal ausblenden
+                if (!focused && this.root.dataset.kbhold == "true") this.unparkEditor();
+            },
             onHistoryChanged: (canUndo, canRedo) => {
                 this.el.undo.toggleAttribute("disabled", !canUndo);
                 this.el.redo.toggleAttribute("disabled", !canRedo);
@@ -124,6 +179,38 @@ export class App {
         if (/[?&]debug\b/.test(location.search)) import("./DebugLog.js").then(m => m.startDebugLog(this.editor.view));
 
         this.keyBar = new KeyBar(this.root, this.editor, this.bridge, (html) => this.showInfo(html));
+        const blockContext: BlockContext = {
+            view: this.editor.view,
+            dialogs: this.dialogs,
+            projectTypes: () => this.projectTypes(),
+            constructors: (type) => this.constructorsOf(type),
+            format: () => this.formatAfterBlock(),
+            constructorSuggestion: (offset) => this.bridge.constructorSuggestion(offset),
+            createFile: (name, text, cursor) => {
+                const file = this.main.createFile(name + ".java", text);
+                this.main.setFileActive(file);
+                this.setView("code");
+                setTimeout(() => {
+                    const v = this.editor.view;
+                    v.dispatch({ selection: { anchor: Math.min(cursor, v.state.doc.length) }, scrollIntoView: true });
+                    v.focus();
+                }, 50);
+            },
+            fileExists: (name) => this.main.getFiles().some(f => f.name.toLowerCase() == (name + ".java").toLowerCase()),
+            hint: (text) => this.hint(text),
+            conditionField: (host, f) => {
+                // Es gilt, was am Anfang der Cursorzeile sichtbar ist (dort bzw. darunter landet der Baustein)
+                const v = this.editor.view, line = v.state.doc.lineAt(v.state.selection.main.head);
+                const anchor = line.from + /^\s*/.exec(line.text)![0].length;
+                // Die Hilfsleiste schreibt in das Feld, solange der Dialog offen ist (zuletzt benutztes Feld)
+                const h = createConditionField(host, { ...f, source: this.bridge.fieldCompletionSource(anchor), onFocus: (fv) => this.keyBar.setField(fv) });
+                const destroy = h.destroy;
+                h.destroy = () => { if (h.view) this.keyBar.clearField(h.view); destroy(); };
+                return h;
+            },
+        };
+        wireBlockPanel(this.el.blockPanel, blockContext);
+        this.keyBar.blockContext = blockContext;
         this.editor.onToggleBreakpoint = (line) => this.toggleBreakpoint(line);
         this.placeKeyBar();
 
@@ -138,9 +225,13 @@ export class App {
         this.setView("code");
         // Projekt mit eingebettetem Lernpfad: startet mit dem Lernpfad in der Seitenleiste
         this.showLernpfad(await this.store.readLernpfad(this.project.id).catch(() => null));
-        if (this.lernpfadHtml) this.setSideView("lernpfad");
+        if (this.lernpfadHtml) {
+            this.setSideView("lernpfad");
+            this.showLernpfadLayout();
+        }
         this.root.removeAttribute("aria-busy");
         this.root.querySelector(".jp-boot")?.remove();
+        if (firstRun) this.showWelcome();
         if (linkMessage?.error) this.dialogs.alert({ title: "Lernpfad lässt sich nicht öffnen", text: linkMessage.error });
         else if (linkMessage?.info) this.toast(linkMessage.info, "check", 5000);
 
@@ -170,7 +261,10 @@ export class App {
             // Touch-Gerät. maxTouchPoints zusätzlich, weil Safari bei angeschlossenem
             // Trackpad (Magic Keyboard) keinen groben Zeiger mehr meldet.
             const touch = coarse.matches || navigator.maxTouchPoints > 1;
-            document.documentElement.classList.toggle("tablet", touch);
+            document.documentElement.classList.toggle("touch", touch);
+            // JPadBlox: Die Hilfsleiste steht auf allen Geräten dauerhaft unten – auch an PC und Mac
+            // (die Klasse „tablet“ steuert genau das: Leiste immer sichtbar, Platz dafür reserviert)
+            document.documentElement.classList.toggle("tablet", true);
             const bar = this.keyBar.el;
             if (bar.parentElement != this.root) this.root.appendChild(bar);
         };
@@ -189,18 +283,22 @@ export class App {
             </button>
             <div class="jp-topbar-spacer"></div>
             <div class="jp-bulbgroup" data-ref="bulbGroup">
-                <button class="jp-iconbtn jp-bulb" data-ref="bulbBtn" aria-label="Tipp: Hilfe zu den Buttons" data-tip="Tipp: So bekommst Du Hilfe zu jedem Button">${icon("lightbulb")}</button>
+                <div class="jp-toolgroup jp-edit-tools" data-ref="editTools">
+                    <button class="jp-iconbtn" data-ref="copyAllBtn" data-tip="Code aller Dateien in die Zwischenablage kopieren" aria-label="Code aller Dateien kopieren" title="Code aller Dateien kopieren">${icon("copyAll")}</button>
+                    <button class="jp-iconbtn" data-ref="copyFileBtn" data-tip="Code der geöffneten Datei in die Zwischenablage kopieren" aria-label="Code dieser Datei kopieren" title="Code dieser Datei kopieren">${icon("copyFile")}</button>
+                    <button class="jp-iconbtn" data-ref="refactorBtn" data-tip="Umbenennen: eine Variable, Methode oder Klasse überall im Projekt umbenennen" aria-label="Umbenennen" title="Umbenennen">${icon("refactor")}</button>
+                    <button class="jp-iconbtn" data-ref="undo" data-tip="Rückgängig: letzte Änderung zurücknehmen" aria-label="Rückgängig" title="Rückgängig">${icon("undo")}</button>
+                    <button class="jp-iconbtn" data-ref="redo" data-tip="Wiederholen: zurückgenommene Änderung wiederherstellen" aria-label="Wiederholen" title="Wiederholen">${icon("redo")}</button>
+                    <button class="jp-iconbtn" data-ref="formatBtn" data-tip="Code formatieren: Einrückungen und Abstände ordnen" aria-label="Code formatieren" title="Code formatieren">${icon("format")}</button>
+                    <button class="jp-iconbtn" data-ref="saveBtn" data-tip="Projekt als Datei sichern. Ein Punkt zeigt Änderungen, die noch nicht gesichert sind." aria-label="Projekt als Datei sichern" title="Projekt als Datei sichern">${icon("save")}<span class="jp-dot"></span></button>
+                </div>
                 <span class="jp-topbar-sep" aria-hidden="true"></span>
+                <button class="jp-iconbtn jp-bulb" data-ref="bulbBtn" aria-label="Tipp: Hilfe zu den Buttons" data-tip="Tipp: So bekommst Du Hilfe zu jedem Button">${icon("lightbulb")}</button>
             </div>
-            <div class="jp-toolgroup jp-edit-tools" data-ref="editTools">
-                <button class="jp-iconbtn" data-ref="copyAllBtn" data-tip="Code aller Dateien in die Zwischenablage kopieren" aria-label="Code aller Dateien kopieren" title="Code aller Dateien kopieren">${icon("copyAll")}</button>
-                <button class="jp-iconbtn" data-ref="copyFileBtn" data-tip="Code der geöffneten Datei in die Zwischenablage kopieren" aria-label="Code dieser Datei kopieren" title="Code dieser Datei kopieren">${icon("copyFile")}</button>
-                <button class="jp-iconbtn" data-ref="undo" data-tip="Rückgängig: letzte Änderung zurücknehmen" aria-label="Rückgängig" title="Rückgängig">${icon("undo")}</button>
-                <button class="jp-iconbtn" data-ref="redo" data-tip="Wiederholen: zurückgenommene Änderung wiederherstellen" aria-label="Wiederholen" title="Wiederholen">${icon("redo")}</button>
-                <button class="jp-iconbtn jp-wide-only" data-ref="formatBtn" data-tip="Code formatieren: Einrückungen und Abstände ordnen" aria-label="Code formatieren" title="Code formatieren">${icon("format")}</button>
-                <button class="jp-iconbtn" data-ref="saveBtn" data-tip="Projekt als Datei sichern. Ein Punkt zeigt Änderungen, die noch nicht gesichert sind." aria-label="Projekt als Datei sichern" title="Projekt als Datei sichern">${icon("save")}<span class="jp-dot"></span></button>
+            <div class="jp-foldgroup" data-ref="foldGroup">
+                <button class="jp-run jo_active jp-foldbtn jp-collapsebtn" data-ref="collapseBtn"></button>
             </div>
-            <div class="jp-toolgroup jp-run-tools">
+            <div class="jp-toolgroup jp-run-tools" data-ref="runTools">
                 <button class="jp-iconbtn jp-step jp-step-more" data-ref="stepOver" data-help="stepOver" data-tip="Methode überspringen: führt einen Methodenaufruf in einem Schritt aus" aria-label="Methode überspringen" title="Methode überspringen">${icon("stepOver")}</button>
                 <button class="jp-iconbtn jp-step jp-step-more jp-wide-only" data-ref="stepOut" data-help="stepOut" data-tip="Methode verlassen: läuft bis zum Ende der aktuellen Methode" aria-label="Methode verlassen" title="Methode verlassen">${icon("stepOut")}</button>
                 <button class="jp-stepbtn" data-ref="stepInto" data-help="step" data-tip="Schritt: führt die nächste Zeile aus – die aktuelle Zeile ist im Code gelb markiert" aria-label="Schritt: nächste Zeile ausführen" title="Schritt: nächste Zeile ausführen">${icon("stepInto")}<span>Schritt</span></button>
@@ -211,26 +309,38 @@ export class App {
         </header>
 
         <main class="jp-main">
+            <section class="jp-pane jp-pane-blocks" aria-label="Bausteine">
+                <div class="jp-panehead">
+                    <span class="jp-panehead-title">Bausteine</span>
+                    <button class="jp-iconbtn jp-layoutbtn" data-ref="blocksLayoutBtn"></button>
+                    <button class="jp-run jo_active jp-blocks-fold" data-ref="blocksFoldBtn" data-tip="Bausteinleiste zuklappen: Symbole statt Namen, mehr Platz für den Code" aria-label="Bausteinleiste zuklappen">${icon("foldLeft")}</button>
+                </div>
+                <button class="jp-run jo_active jp-blocks-restore" data-ref="blocksRestoreBtn" data-tip="Bausteinleiste wieder in normaler Breite (mit Namen) anzeigen" aria-label="Bausteinleiste normal breit">${icon("foldRight")}</button>
+                <div class="jp-blockpanel" data-ref="blockPanel">${blockPanelHtml()}</div>
+            </section>
             <section class="jp-pane jp-pane-code" aria-label="Quelltext">
                 <div class="jp-filebar" data-ref="filebar">
                     <nav class="jp-filetabs" data-ref="fileTabs" aria-label="Dateien"></nav>
                     <div class="jp-filebar-actions">
                         <button class="jp-filetab-add" data-ref="newFileBtn" data-tip="Neue Datei (Klasse) anlegen" aria-label="Neue Datei" title="Neue Datei">${icon("plus")}</button>
-                        <span class="jp-filetabs-sep" aria-hidden="true"></span>
-                        <button class="jp-filetab-add jp-filetab-paste" data-ref="pasteFileBtn" aria-label="Text aus der Zwischenablage in neue Datei einsetzen" title="Text aus der Zwischenablage in neue Datei einsetzen">${icon("pastePlus")}</button>
                     </div>
+                    <button class="jp-iconbtn jp-layoutbtn" data-ref="editorFullBtn"></button>
                     <button class="jp-iconbtn jp-layoutbtn" data-ref="layoutBtn"></button>
                 </div>
                 <div class="jp-editor" data-ref="editorHost"></div>
                 <div class="jp-signature" data-ref="signature" hidden></div>
             </section>
             <section class="jp-pane jp-pane-side">
+                <div class="jp-sidehead">
                 <div class="jp-segmented jp-side-switch" role="tablist">
                     <button role="tab" data-side="lernpfad" class="jp-lernpfad-tab" data-tip="Lernpfad: Anleitung und Aufgaben zu diesem Projekt" aria-label="Lernpfad" title="Lernpfad">${icon("lernpfad")}</button>
                     <button role="tab" data-side="output" data-tip="Ausgabe: Text und Grafik deines Programms">${icon("output")}<span>Ausgabe</span></button>
                     <button role="tab" data-side="variables" data-tip="Variablen und ihre Werte beim schrittweisen Ausführen">${icon("variables")}<span>Variablen</span></button>
                     <button role="tab" data-side="diagram" data-tip="Diagramm: Klassen und Objekte">${icon("diagram")}<span>Diagramm</span></button>
                     <button role="tab" data-side="problems" data-tip="Probleme: Fehler im Code">${icon("problems")}<span>Probleme</span><span class="jp-badge" data-ref="sideBadge"></span></button>
+                </div>
+                <button class="jp-iconbtn jp-layoutbtn" data-ref="sideFullBtn"></button>
+                <button class="jp-iconbtn jp-layoutbtn" data-ref="sideLayoutBtn"></button>
                 </div>
                 <div class="jp-lernpfad" data-ref="lernpfad"></div>
                 <div class="jp-output" data-ref="outputHost"></div>
@@ -260,18 +370,30 @@ export class App {
                 <div class="jp-menu-actions">
                     <button data-ref="newProjectBtn" data-tip="Neues, leeres Projekt anlegen">${icon("plus")}<span>Neues Projekt</span></button>
                     <button data-ref="openFileBtn" data-tip="Projekt aus einer Datei öffnen (z. B. aus ByCS Drive)">${icon("open")}<span>Projekt aus Datei öffnen</span></button>
+                    <button data-ref="jcodeBtn" data-tip="Lernprojekt mit dem kurzen Code öffnen, den deine Lehrkraft dir gibt (z. B. H88HF)">${icon("jcode")}<span>Projekt über JCode öffnen</span></button>
                     <button data-ref="saveFileBtn" data-tip="Projekt als Datei sichern">${icon("save")}<span>Projekt als Datei sichern</span></button>
-                    <button data-ref="userSpritesBtn" data-tip="Eigene Bilder als Sprites zum Projekt hinzufügen">${icon("imagePlus")}<span>Eigene Sprites</span></button>
+                </div>
+                <div class="jp-menu-actions jp-menu-group">
+                    <button data-ref="demoBtn" data-tip="Neues Projekt mit einer frischen Kopie des Demo-Lernpfads: JPad kennenlernen und die Klasse Hund bauen">${icon("lernpfad")}<span>Demo laden</span></button>
                     <button data-ref="lernpfadAddBtn" data-tip="Eine HTML-Seite oder ein ZIP (index.html mit Bildern) als Lernpfad in dieses Projekt einbetten">${icon("lernpfad")}<span>Lernpfad einbetten</span></button>
                     <button data-ref="lernpfadRemoveBtn" data-tip="Den eingebetteten Lernpfad aus diesem Projekt entfernen">${icon("trash")}<span>Lernpfad entfernen</span></button>
                 </div>
-                <ul class="jp-projectlist" data-ref="projectList"></ul>
+                <ul class="jp-projectlist jp-menu-group" data-ref="projectList"></ul>
+
+                <h2>Grafik</h2>
+                <div class="jp-menu-actions">
+                    <button data-ref="userSpritesBtn" data-tip="Eigene Bilder als Sprites zum Projekt hinzufügen">${icon("imagePlus")}<span>Eigene Sprites</span></button>
+                    <button data-ref="spritesBtn" data-tip="Alle eingebauten Sprites mit ihren Nummern ansehen">${icon("image")}<span>Sprite Bibliothek</span></button>
+                </div>
 
                 <h2>Darstellung</h2>
                 <div class="jp-segmented" data-ref="themeSwitch">
                     <button data-theme-choice="light" data-tip="Helle Darstellung">${icon("sun")}<span>Hell</span></button>
                     <button data-theme-choice="dark" data-tip="Dunkle Darstellung">${icon("moon")}<span>Dunkel</span></button>
                     <button data-theme-choice="auto" data-tip="Darstellung wie in der Systemeinstellung des Geräts">${icon("auto")}<span>System</span></button>
+                </div>
+                <div class="jp-skin-picker" data-ref="skinPicker" role="group" aria-label="Theme">
+                    ${SKINS.map(k => `<button data-skin-choice="${k.id}" data-tip="${k.tip}" aria-label="Theme ${k.label}" title="${k.label}" style="--sw-bg:${k.bg};--sw-fg:${k.fg}"><span class="jp-skin-swatch">${icon(k.icon)}</span></button>`).join("")}
                 </div>
                 <div class="jp-setting-row">
                     <span>Schriftgröße</span>
@@ -292,11 +414,10 @@ export class App {
                 <div class="jp-menu-actions">
                     <button data-ref="colorsBtn" data-tip="Alle Farben der Klasse Color nachschlagen">${icon("palette")}<span>Color Handbuch</span></button>
                     <button data-ref="handbookBtn" data-tip="Klassen und Methoden der Online-IDE nachschlagen">${icon("book")}<span>Class Handbuch</span></button>
-                    <button data-ref="spritesBtn" data-tip="Alle eingebauten Sprites mit ihren Nummern ansehen">${icon("image")}<span>Sprite Bibliothek</span></button>
                 </div>
 
                 <h2>Über JPad</h2>
-                <p class="jp-about">JPad ist eine Oberfläche für Tablets und Handys auf Basis der
+                <p class="jp-about">JPad ist eine Oberfläche mit Code-Bausteinen zum Antippen für Tablets und Handys auf Basis der
                 <a href="https://www.online-ide.de" target="_blank" rel="noopener">Online-IDE</a> von Martin Pabst.
                 Compiler und Programmiersprache stammen unverändert aus der Online-IDE.
                 Deine Projekte bleiben auf diesem Gerät, bis du sie als Datei sicherst.
@@ -317,21 +438,59 @@ export class App {
         this.el.projectBtn.addEventListener("click", () => this.renameProject());
         this.el.bulbBtn.addEventListener("click", () => this.tips.toggleInfo(this.el.bulbBtn));
         this.el.newFileBtn.addEventListener("click", () => this.newFile());
-        this.el.pasteFileBtn.addEventListener("click", () => this.pasteAsNewFile());
+        // JPadBlox: Knopf „Zwischenablage in neue Datei“ entfällt
         this.el.copyAllBtn.addEventListener("click", () => this.copyCode(true));
         this.el.copyFileBtn.addEventListener("click", () => this.copyCode(false));
         this.el.undo.addEventListener("click", () => this.editor.undo());
         this.el.redo.addEventListener("click", () => this.editor.redo());
         this.el.formatBtn.addEventListener("click", () => this.formatCode());
         this.el.saveBtn.addEventListener("click", () => this.exportProject());
+        // Themes: Auswahl im Menü unter „Darstellung“
+        this.el.skinPicker.querySelectorAll<HTMLElement>("[data-skin-choice]").forEach(b =>
+            b.addEventListener("click", () => this.setSkin(<Skin>b.dataset.skinChoice)));
+        this.el.collapseBtn.addEventListener("pointerdown", e => e.preventDefault());
+        this.el.collapseBtn.addEventListener("click", () => this.setCompact(this.root.dataset.compact != "true"));
+        this.setCompact(this.loadCompact());
+        this.el.refactorBtn.addEventListener("click", () => this.renameDialog());
+        this.el.demoBtn.addEventListener("click", () => this.openDemo());
+        this.el.jcodeBtn.addEventListener("click", () => this.openJCode());
+        this.renderSkinButton();
 
         // Kopfzeilen-Knöpfe sollen dem Editor den Fokus nicht wegnehmen (sonst klappt die Tastatur zu)
         this.root.querySelectorAll<HTMLElement>(".jp-topbar button.jp-iconbtn:not([data-ref=menuBtn]):not([data-ref=saveBtn])")
             .forEach(b => b.addEventListener("pointerdown", e => e.preventDefault()));
 
+        // Dateireiter: Ein Tipp auf einen anderen Reiter nimmt dem Editor den Fokus nicht weg – die Bildschirm-
+        // tastatur bleibt offen. Wischen zum Scrollen der Reiterleiste bleibt erhalten (nur ein echter Tipp zählt).
+        {
+            const tabs = this.el.fileTabs;
+            for (const ev of ["pointerdown", "mousedown"]) tabs.addEventListener(ev, e => {
+                if ((<HTMLElement>e.target).closest(".jp-filetab")) e.preventDefault();
+            });
+            let tap: { b: HTMLElement, x: number, y: number, moved: boolean } | null = null;
+            tabs.addEventListener("touchstart", e => {
+                const b = (<HTMLElement>e.target).closest<HTMLElement>(".jp-filetab");
+                tap = b && e.touches.length == 1 ? { b, x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false } : null;
+            }, { passive: true });
+            tabs.addEventListener("touchmove", e => {
+                const t = e.touches[0];
+                if (tap && t && Math.hypot(t.clientX - tap.x, t.clientY - tap.y) > 10) tap.moved = true;
+            }, { passive: true });
+            tabs.addEventListener("touchend", e => {
+                const t = tap; tap = null;
+                if (!t || t.moved) return;
+                e.preventDefault();   // keine nachgereichten Maus-Ereignisse, kein Fokuswechsel
+                t.b.click();
+            }, { passive: false });
+        }
+
         // ----- Ansichten -----
-        this.root.querySelectorAll<HTMLElement>(".jp-bottomnav [data-view]").forEach(b =>
-            b.addEventListener("click", () => this.setView(<View>b.dataset.view)));
+        this.root.querySelectorAll<HTMLElement>(".jp-bottomnav [data-view]").forEach(b => {
+            b.addEventListener("click", () => this.setView(<View>b.dataset.view));
+            // Fokus im Editor lassen (sonst klappt die Bildschirmtastatur beim Ansichtswechsel zu)
+            for (const ev of ["pointerdown", "mousedown"]) b.addEventListener(ev, e => e.preventDefault());
+            b.addEventListener("touchend", e => { e.preventDefault(); b.click(); }, { passive: false });
+        });
         this.root.querySelectorAll<HTMLElement>(".jp-side-switch [data-side]").forEach(b =>
             b.addEventListener("click", () => this.setSideView(<any>b.dataset.side)));
 
@@ -391,30 +550,94 @@ export class App {
 
         // Breites Layout (iPad quer, Laptop) oder Reiter-Layout (Handy, iPad hoch)
         const mq = matchMedia("(min-width: 900px) and (min-aspect-ratio: 1/1)");
-        const applyLayout = () => {
-            const focus = this.getEditorFullWidth();
-            this.root.dataset.wide = String(mq.matches);
-            this.root.dataset.layout = mq.matches && !focus ? "split" : "tabs";
-            const btn = this.el.layoutBtn;
-            btn.innerHTML = icon(focus ? "shrink" : "expand");
-            const label = focus ? "Ausgabe wieder rechts neben dem Editor anzeigen" : "Editor auf volle Breite vergrößern";
+        /*
+         * JPadBlox: drei Spalten (Bausteine | Editor | Ansicht rechts).
+         *
+         * Bausteinleiste: Knopf wechselt nur zwischen schmal (12,5 %) und breit (25 %).
+         * Editor: „Vergrößern“ blendet die Ansicht rechts aus, der Editor nimmt ihren Platz ein (die Ansicht vorher
+         *   wird gemerkt). Dann stehen dort zwei Knöpfe: „Volle Breite“ (Editor über das ganze Fenster, Ausgabe usw.
+         *   als Reiter unten) und „Verkleinern“ (zurück zur gemerkten Ansicht).
+         * Ansicht rechts: „Vergrößern“ macht sie so breit wie den Editor, die Bausteine schmal, der Editor bekommt
+         *   den Rest (die Ansicht vorher wird gemerkt). Dann zwei Knöpfe: „Volle Breite“ (Ansicht rechts über das
+         *   ganze Fenster) und „Verkleinern“ (zurück zur gemerkten Ansicht).
+         *   Tippt man dabei auf „Vergrößern“ der Bausteine, wird die Ansicht rechts wieder schmal.
+         */
+        const setBtn = (btn: HTMLElement, iconName: string, label: string, show = true) => {
+            btn.innerHTML = icon(iconName);
             btn.setAttribute("aria-label", label);
             btn.title = label;
             btn.dataset.tip = label;
+            btn.hidden = !show;
+        };
+        const applyLayout = () => {
+            const stored = this.getViewState();
+            // JPadBlox: Die ganz breite Bausteinleiste ist abgeschaltet (Code bleibt, siehe BLOCKS_WIDE_ENABLED)
+            const v: ViewState = { ...stored, blocksWide: BLOCKS_WIDE_ENABLED && stored.blocksWide };
+            const m = v.mode;
+            const cols =
+                m == "editorFull" ? "full" :
+                m == "editorWide" ? (v.blocksWide ? "edit-w" : "edit-n") :
+                m == "infoWide" ? "info" :
+                m == "infoFull" ? "infofull" :
+                v.blocksWide ? "blocks" : "default";
+            this.root.dataset.wide = String(mq.matches);
+            this.root.dataset.cols = cols;
+            this.root.dataset.bwide = String(v.blocksWide && m != "infoWide");
+            // JPadBlox: ganz schmale Bausteinleiste (nur Kurzzeichen)
+            this.root.dataset.btiny = String(this.blocksTiny() && this.root.dataset.bwide != "true");
+            this.root.dataset.layout = mq.matches && m != "editorFull" ? "split" : "tabs";
+
+            setBtn(this.el.blocksLayoutBtn, v.blocksWide ? "shrink" : "expand",
+                v.blocksWide ? "Bausteinleiste ganz schmal anzeigen (nur Symbole)" : "Bausteinleiste breit anzeigen");
+
+            const editorOpen = m == "editorWide" || m == "editorFull";
+            setBtn(this.el.layoutBtn, editorOpen ? "shrink" : "expand",
+                editorOpen ? "Verkleinern: zurück zur Ansicht von vorher" : "Editor vergrößern (Ansicht rechts ausblenden)");
+            setBtn(this.el.editorFullBtn, "fit", "Editor auf volle Fensterbreite", m == "editorWide");
+
+            const infoOpen = m == "infoWide" || m == "infoFull";
+            setBtn(this.el.sideLayoutBtn, infoOpen ? "shrink" : "expand",
+                infoOpen ? "Verkleinern: zurück zur Ansicht von vorher" : "Ansicht rechts vergrößern");
+            setBtn(this.el.sideFullBtn, "fit", "Ansicht rechts auf volle Fensterbreite", m == "infoWide");
+
             this.setView(this.view);
+            this.alignBulbSoon();
         };
         mq.addEventListener("change", applyLayout);
-        this.el.layoutBtn.addEventListener("pointerdown", e => e.preventDefault()); // Tastatur offen lassen
-        this.el.layoutBtn.addEventListener("click", () => {
-            this.setEditorFullWidth(!this.getEditorFullWidth());
-            applyLayout();
+        const layoutButton = (btn: HTMLElement, change: (v: ViewState) => ViewState) => {
+            btn.addEventListener("pointerdown", e => e.preventDefault()); // Tastatur offen lassen
+            btn.addEventListener("click", () => { this.setViewState(change(this.getViewState())); applyLayout(); });
+        };
+        const DEFAULT: ViewState = { mode: "normal", blocksWide: false };
+        // Bei doppelt breiter Ansicht rechts: Bausteine breit, Ansicht rechts wieder schmal
+        // Bausteinleiste: normal → breit → ganz schmal (nur Symbole); der gelbe Pfeil oben führt zurück zu normal
+        layoutButton(this.el.blocksLayoutBtn, v => {
+            if (v.mode == "infoWide") { this.setBlocksTiny(false); return { mode: "normal", blocksWide: true }; }
+            if (v.blocksWide) { this.setBlocksTiny(true); return { ...v, blocksWide: false }; }
+            this.setBlocksTiny(false);
+            return { ...v, blocksWide: true };
         });
+        layoutButton(this.el.blocksRestoreBtn, v => { this.setBlocksTiny(false); return { ...v, blocksWide: false }; });
+        // Gelber Pfeil im Kopf „Bausteine“: Leiste zuklappen (nur Symbole)
+        layoutButton(this.el.blocksFoldBtn, v => { this.setBlocksTiny(true); return { ...v, blocksWide: false }; });
+        layoutButton(this.el.layoutBtn, v => {
+            if (v.mode == "editorWide" || v.mode == "editorFull") return v.before ?? DEFAULT;
+            return { mode: "editorWide", blocksWide: v.blocksWide, before: { mode: v.mode, blocksWide: v.blocksWide } };
+        });
+        layoutButton(this.el.editorFullBtn, v => ({ ...v, mode: "editorFull" }));
+        layoutButton(this.el.sideLayoutBtn, v =>
+            v.mode == "infoWide" || v.mode == "infoFull"
+                ? v.before ?? DEFAULT
+                : { mode: "infoWide", blocksWide: false, before: { mode: v.mode, blocksWide: v.blocksWide } });
+        layoutButton(this.el.sideFullBtn, v => ({ ...v, mode: "infoFull" }));
+        this.applyLayout = applyLayout;
         applyLayout();
 
         // Glühbirne im Querformat bündig über dem Code-Editor ausrichten
         const ro = new ResizeObserver(() => this.alignBulbSoon());
         ro.observe(this.root.querySelector(".jp-pane-code")!);
         ro.observe(this.root.querySelector(".jp-topbar")!);
+        ro.observe(this.el.runTools);
     }
 
     private bulbFrame = 0;
@@ -424,35 +647,64 @@ export class App {
     }
 
     /**
-     * Querformat (Code und Ausgabe nebeneinander): Die Glühbirne steht rechtsbündig über dem
-     * Code-Editor, der Trennstrich rechts daneben genau mittig in der Lücke zur rechten Ansicht.
-     * Sonst (oder wenn der Platz nicht reicht) stehen beide einfach links neben den Kopier-Knöpfen.
+     * Querformat (Code und Ausgabe nebeneinander): Die Bearbeiten-Knöpfe (Kopieren, Rückgängig,
+     * Wiederholen, Formatieren, Sichern) stehen rechtsbündig über dem Code-Editor, der Trennstrich rechts
+     * daneben genau mittig in der Lücke zur rechten Ansicht, die Glühbirne linksbündig über der rechten Ansicht.
+     * Die Ausführen-Knöpfe bleiben am rechten Rand.
+     * Sonst (oder wenn der Platz nicht reicht) reihen sie sich einfach links neben der Glühbirne ein.
      */
+    /** Breite der Kopfzeile bei der letzten Ausrichtung im aufgeklappten Zustand */
+    private alignedBarWidth = "";
     private alignBulb() {
         const g = this.el.bulbGroup, bar = g.parentElement!;
+        // Zugeklappt: Die Striche bleiben genau dort, wo die Knöpfe aufgeklappt standen
+        // (die Bereiche darunter werden zugeklappt breiter, die Knöpfe sollen aber nicht wandern)
+        const key = [bar.clientWidth, this.el.runTools.offsetWidth, this.el.projectBtn.offsetWidth].join(",");
+        if (this.root.dataset.compact == "true") {
+            if (this.alignedBarWidth == key) return;
+            // Noch keine Werte für diese Breite: kurz aufgeklappt vermessen (ohne sichtbares Zwischenbild)
+            this.root.dataset.compact = "false";
+            try { this.alignBulb(); } finally { this.root.dataset.compact = "true"; }
+            return;
+        }
+        this.alignedBarWidth = key;
         const sep = g.querySelector<HTMLElement>(".jp-topbar-sep")!;
+        const fold = this.el.foldGroup;
         const reset = () => {
             g.classList.remove("is-aligned");
             g.style.left = "";
             sep.style.marginLeft = sep.style.marginRight = "";
+            this.el.bulbBtn.style.marginLeft = "";
+            fold.classList.remove("is-aligned");
+            fold.style.left = "";
         };
         reset();
-        if (this.root.dataset.layout != "split" || getComputedStyle(g).display == "none") return;
+        // Zuklapp-Knopf genau mittig zwischen Glühbirne und den Ausführen-Knöpfen
+        const centerFold = () => {
+            const bulb = this.el.bulbBtn.getBoundingClientRect(), skin = this.el.runTools.getBoundingClientRect();
+            if (bulb.width == 0 || skin.width == 0 || skin.left - bulb.right < 2 * fold.offsetWidth + 20) return; // sonst bleibt er einfach eingereiht
+            const br = bar.getBoundingClientRect();
+            fold.classList.add("is-aligned");
+            fold.style.left = ((bulb.right + skin.left) / 2 - fold.offsetWidth / 2 - br.left) + "px";
+        };
+        if (this.root.dataset.layout != "split" || getComputedStyle(g).display == "none") { centerFold(); return; }
         const code = this.root.querySelector(".jp-pane-code")!.getBoundingClientRect();
         const side = this.root.querySelector(".jp-pane-side")!.getBoundingClientRect();
-        if (code.width == 0 || side.width == 0) return;
-        const bulb = this.el.bulbBtn.getBoundingClientRect();
+        if (code.width == 0 || side.width == 0) { centerFold(); return; }
+        const tools = this.el.editTools.getBoundingClientRect();
         const barRect = bar.getBoundingClientRect();
         const gapMid = (code.right + side.left) / 2;
         sep.style.marginLeft = Math.max(0, gapMid - code.right - 0.5) + "px";
         sep.style.marginRight = "0px";
+        this.el.bulbBtn.style.marginLeft = Math.max(0, side.left - gapMid - 0.5) + "px";
         g.classList.add("is-aligned");
-        g.style.left = (code.right - bulb.width - barRect.left) + "px";
-        // Überschneidet sich die Gruppe mit dem Projektnamen oder den Knöpfen: normal einreihen
+        g.style.left = (code.right - tools.width - barRect.left) + "px";
+        // Überschneidet sich die Gruppe mit dem Projektnamen oder den Knöpfen rechts davon: normal einreihen
         const gr = g.getBoundingClientRect();
         const proj = this.el.projectBtn.getBoundingClientRect();
-        const tools = this.el.editTools.getBoundingClientRect();
-        if (gr.left < proj.right + 4 || gr.right > tools.left - 4) reset();
+        const run = this.el.runTools.getBoundingClientRect();
+        if (gr.left < proj.right + 4 || gr.right > run.left - 4) reset();
+        centerFold();
     }
 
     /**
@@ -637,15 +889,36 @@ export class App {
         if (view != "code") this.sideView = view;
         this.root.dataset.view = view;
         this.root.dataset.side = this.sideView;
-        const diagramVisible = this.sideView == "diagram" && (this.root.dataset.layout == "split" || view == "diagram");
+        const diagramVisible = this.sideView == "diagram" &&
+            (this.root.dataset.layout == "split" ? !/^edit-/.test(this.root.dataset.cols ?? "") : view == "diagram");
         this.diagram?.setVisible(diagramVisible);
         this.root.querySelectorAll<HTMLElement>(".jp-bottomnav [data-view]").forEach(b =>
             b.setAttribute("aria-current", String(b.dataset.view == view)));
         this.root.querySelectorAll<HTMLElement>(".jp-side-switch [data-side]").forEach(b =>
             b.setAttribute("aria-selected", String(b.dataset.side == this.sideView)));
-        if (view != "code") this.editor?.view.contentDOM.blur();
+        /*
+         * JPadBlox: Reiter-Layout (iPad hochkant) mit offener Bildschirmtastatur: Beim Wechsel zu Lernpfad, Ausgabe …
+         * bleibt die Tastatur offen. Dafür behält der (unsichtbar „geparkte“) Editor den Fokus und nimmt solange
+         * keine Eingaben an. Zurück im Code geht es an derselben Stelle weiter.
+         */
+        const hold = view != "code" && this.root.dataset.layout == "tabs" && !!this.editor?.view.hasFocus
+            && document.documentElement.classList.contains("keyboard-open");
+        if (hold) {
+            this.root.dataset.kbhold = "true";
+            this.editor.setParked(true);
+        } else if (view == "code" && this.root.dataset.kbhold == "true") {
+            this.unparkEditor();
+        } else if (view != "code") {
+            this.unparkEditor();
+            this.editor?.view.contentDOM.blur();
+        }
         // Grafikbereich der Online-IDE über Größenänderung informieren
         setTimeout(() => jQuery('.jo_graphics').trigger('sizeChanged'), 50);
+    }
+
+    private unparkEditor() {
+        delete this.root.dataset.kbhold;
+        this.editor?.setParked(false);
     }
 
     setSideView(side: SideView) {
@@ -679,8 +952,11 @@ export class App {
                 + (errors > 0 ? `<span class="jp-badge">${errors}</span>` : "")
                 + (file == active ? `<span class="jp-filetab-more" aria-label="Datei-Aktionen">${icon("more")}</span>` : "");
             b.addEventListener("click", () => {
-                if (file == this.main.getActiveFile()) this.fileActions(file);
-                else this.main.setFileActive(file);
+                if (file == this.main.getActiveFile()) { this.fileActions(file); return; }
+                const hadFocus = this.editor?.view.hasFocus;
+                this.main.setFileActive(file);
+                // Tastatur offen lassen: Fokus nach dem Dateiwechsel im Editor behalten
+                if (hadFocus && !this.editor.view.hasFocus) this.editor.view.focus();
             });
             container.appendChild(b);
         }
@@ -743,7 +1019,7 @@ export class App {
     async newFile() {
         const name = await this.dialogs.prompt({
             title: "Neue Datei",
-            label: "Name der Datei",
+            label: "Wie soll Deine Datei heißen?",
             placeholder: "z. B. Auto",
             confirm: "Anlegen",
             validate: (v) => this.validateClassName(v.trim()),
@@ -787,6 +1063,124 @@ export class App {
                 this.markModified();
             }
         }
+    }
+
+    /**
+     * JPadBlox: Konstruktoren eines Datentyps für den Variablen-Baustein. Eigene Klassen: die im Quelltext
+     * notierten; hat die Klasse keinen, nur der Standardkonstruktor. Klassenbibliothek: alle nicht privaten.
+     */
+    constructorsOf(typeName: string): { params: { type: string, name: string }[] }[] {
+        const result: { params: { type: string, name: string }[] }[] = [];
+        try {
+            const compiler: any = this.main.getCompiler();
+            const t: any = compiler?.moduleManager?.typestore?.getType(typeName) ?? compiler?.getType?.(typeName);
+            const own = t?.module?.file instanceof GUIFile;
+            for (const m of t?.getOwnMethods?.() ?? []) {
+                if (!m.isConstructor || m.visibility == TokenType.keywordPrivate) continue;
+                if (own && !(m.identifierRange?.startLineNumber >= 1)) continue;
+                const params = (m.parameters ?? []).map((p: any) => ({ type: String(p.type?.toString?.() ?? p.type?.identifier ?? "?"), name: p.identifier }));
+                if (!result.some(r => JSON.stringify(r.params) == JSON.stringify(params))) result.push({ params });
+            }
+        } catch (e) { console.warn(e); }
+        if (result.length == 0) result.push({ params: [] });
+        return result;
+    }
+
+    /** JPadBlox: Namen aller Klassen, Interfaces und Enums des geöffneten Projekts */
+    projectTypes(): string[] {
+        const names = new Set<string>();
+        for (const file of this.main.getFiles()) {
+            const text = file.getMonacoModel()?.getValue() ?? "";
+            const re = /\b(?:class|interface|enum)\s+([A-Za-z_\u00C0-\u024F][\w\u00C0-\u024F]*)/g;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(text))) names.add(m[1]);
+        }
+        return [...names].sort((a, b) => a.localeCompare(b, "de"));
+    }
+
+    /**
+     * JPadBlox: Nach jedem Baustein formatieren. Die Änderungen gehen direkt in den Editor (statt
+     * über das Modell), damit Cursor und Platzhalter an ihrer Stelle bleiben.
+     */
+    async formatAfterBlock() {
+        try {
+            const r = await this.bridge.formatChanges();
+            const view = this.editor.view;
+            if (!r || view.state.doc.toString() != r.text) return;   // inzwischen weitergetippt
+            // Der Formatierer hängt manchmal Leerzeichen ans Zeilenende (z. B. hinter „;“ am Dateiende) – weglassen
+            const changes = r.changes.filter(c => !(c.from == c.to && /^[ \t]+$/.test(c.insert) &&
+                (c.to == r.text.length || r.text[c.to] == "\n")));
+            if (changes.length) view.dispatch({ changes, userEvent: "input.format" });
+        } catch (e) {
+            console.warn("JPadBlox: Formatieren nach Baustein fehlgeschlagen", e);
+        }
+    }
+
+    /** Willkommen beim allerersten Start (danach nie wieder) */
+    showWelcome() {
+        try { localStorage.setItem("jpadblox.welcomed", "1"); } catch (e) { }
+        this.dialogs.welcome();
+    }
+
+    /**
+     * Menü „Demo-Projekt laden“: öffnet den Demo-Lernpfad (public/demo) wie einen Lernpfad-Link.
+     * Gibt es das Demo-Projekt schon, öffnet sich dieses mit dem bisherigen Stand.
+     */
+    /** Menü „Projekt über JCode öffnen“: Code eingeben, Datei unter learn/ suchen, wie ein Link öffnen */
+    async openJCode() {
+        this.main.flush();
+        this.closeDrawer();
+        const { normalizeJCode, jcodeFormatError, resolveJCode, JCODE_LENGTH } = await import("./JCode.js");
+        const path = await this.dialogs.jcode({
+            length: JCODE_LENGTH,
+            normalize: normalizeJCode,
+            check: jcodeFormatError,
+            resolve: resolveJCode,
+        });
+        if (!path) return;
+        // Wie ein Link ?lernpfad=…: beim ersten Mal neues Projekt, danach dasselbe Projekt mit dem eigenen Stand
+        const url = new URL(location.href);
+        url.search = "?lernpfad=" + encodeURIComponent(path);
+        location.href = url.href;
+    }
+
+    openDemo() {
+        this.main.flush();
+        this.closeDrawer();
+        const url = new URL(location.href);
+        // „neu“: immer ein neues Projekt mit frischer Kopie vom Server, nie das alte Demo-Projekt wiederverwenden
+        url.search = "?lernpfad=" + encodeURIComponent("learn/demo/Lernpfad-Bello.html") + "&neu=1";
+        setTimeout(() => location.href = url.href, 150);
+    }
+
+    /** Refactor-Knopf: Variable, Methode oder Klasse im ganzen Projekt umbenennen. */
+    async renameDialog() {
+        this.main.flush();
+        const { collectCandidates, validateNewName, renameSymbol, candidateAt } = await import("./Refactor.js");
+        const all = collectCandidates(this.main);
+        // Berührt der Cursor (oder die Markierung) ein Symbol, ist es gleich ausgewählt
+        const sel = this.editor.view.state.selection.main;
+        const model = this.main.getActiveFile()?.getMonacoModel();
+        const selectedId = model ? candidateAt(this.main, all, model, sel.from, sel.to) : undefined;
+        if (all.length == 0) {
+            this.toast("Im Projekt gibt es noch nichts zum Umbenennen.", "info", 4000);
+            return;
+        }
+        const group = (kind: string, label: string) => ({
+            label, items: all.filter(c => c.kind == kind).map(c => ({ id: c.id, name: c.name, label: `${c.name} – ${c.detail}` }))
+        });
+        const result = await this.dialogs.rename({
+            groups: [group("variable", "Variablen"), group("method", "Methoden"), group("class", "Klassen")],
+            validate: (id, name) => validateNewName(all.find(c => c.id == id)!, name, all),
+            selectedId
+        });
+        if (!result) return;
+        const c = all.find(x => x.id == result.id)!;
+        const count = renameSymbol(this.main, c, result.name);
+        this.renderFileTabs();
+        this.main.getCompiler()?.triggerCompile();
+        this.toast(count > 0 ? `„${c.name}“ heißt jetzt „${result.name}“ (${count} ${count == 1 ? "Stelle" : "Stellen"}).`
+            : `„${c.name}“ wurde nicht gefunden. Gibt es noch Fehler im Code?`, "check", 4000);
     }
 
     async formatCode() {
@@ -918,12 +1312,38 @@ export class App {
                     <span><span class="jp-projectitem-name">${escapeHtml(p.name)}</span>
                     <span class="jp-projectitem-date">geändert ${fmt.format(new Date(p.modified))}</span></span>
                 </button>
+                <button class="jp-iconbtn jp-projectitem-dup" aria-label="Projekt „${escapeHtml(p.name)}“ duplizieren" data-tip="Projekt duplizieren: legt eine Kopie an und öffnet sie">${icon("duplicate")}</button>
                 <button class="jp-iconbtn jp-projectitem-del" aria-label="Projekt „${escapeHtml(p.name)}“ löschen">${icon("trash")}</button>`;
             li.querySelector(".jp-projectitem-open")!.addEventListener("click", () => {
                 if (!isCurrent) this.switchToProject(p.id); else this.closeDrawer();
             });
+            li.querySelector(".jp-projectitem-dup")!.addEventListener("click", () => this.duplicateProject(p));
             li.querySelector(".jp-projectitem-del")!.addEventListener("click", () => this.deleteProject(p));
             ul.appendChild(li);
+        }
+    }
+
+    /** Legt eine Kopie des Projekts an (Code, eigene Sprites, Lernpfad samt Fortschritt) und öffnet sie. */
+    async duplicateProject(p: ProjectInfo) {
+        try {
+            if (p.id == this.project.id) this.main.flush();
+            const files = await this.store.readFiles(p.id);
+            if (!files) throw new Error("Das Projekt ließ sich nicht lesen.");
+            const copy = this.store.createInfo(p.name + " (Kopie)");
+            await this.store.writeFiles(copy.id, files);
+            const sprites = await this.store.readSpritesheet(p.id).catch(() => null);
+            if (sprites) await this.store.writeSpritesheet(copy.id, sprites);
+            const lernpfad = await this.store.readLernpfad(p.id).catch(() => null);
+            if (lernpfad) await this.store.writeLernpfad(copy.id, lernpfad);
+            try {
+                const state = localStorage.getItem("jpad.lernpfad." + p.id);
+                if (state) localStorage.setItem("jpad.lernpfad." + copy.id, state);
+            } catch (e) { }
+            this.closeDrawer();
+            this.toast(`„${copy.name}“ angelegt.`, "check");
+            this.switchToProject(copy.id);
+        } catch (e: any) {
+            this.dialogs.alert({ title: "Duplizieren nicht möglich", text: e?.message || String(e) });
         }
     }
 
@@ -1001,13 +1421,14 @@ export class App {
      * Projekt; ruft man denselben Link erneut auf, öffnet sich dieses Projekt mit dem Stand des Schülers.
      * Danach verschwindet der Parameter aus der Adresszeile, damit Neuladen nichts doppelt anlegt.
      */
-    private async openFromLink(): Promise<{ error?: string, info?: string } | undefined> {
+    private async openFromLink(override?: { projekt: string | null, lernpfad: string | null }): Promise<{ error?: string, info?: string } | undefined> {
         const params = new URLSearchParams(location.search);
-        const raw = { projekt: params.get("projekt"), lernpfad: params.get("lernpfad") };
+        const raw = override ?? { projekt: params.get("projekt"), lernpfad: params.get("lernpfad") };
         if (!raw.projekt && !raw.lernpfad) return undefined;
         const clean = () => {
             params.delete("projekt");
             params.delete("lernpfad");
+            params.delete("neu");
             const q = params.toString();
             try { history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash); } catch (e) { }
         };
@@ -1015,7 +1436,8 @@ export class App {
             const abs = (u: string | null) => u ? new URL(u.trim(), location.href).href : null;
             const projekt = abs(raw.projekt), lernpfad = abs(raw.lernpfad);
             const source = [projekt, lernpfad].filter(s => s).join(" + ");
-            const existing = this.store.list().find(p => p.source == source);
+            const fresh = params.get("neu") != null;
+            const existing = fresh ? undefined : this.store.list().find(p => p.source == source);
             if (existing) {
                 this.store.setCurrentId(existing.id);
                 clean();
@@ -1026,7 +1448,8 @@ export class App {
             const { loadLinkedProject } = await import("./Lernpfad.js");
             const linked = await loadLinkedProject(projekt, lernpfad);
             const p = this.store.createInfo(linked.name);
-            this.store.update(p.id, { source });
+            // Frisch geladene Demo-Kopien merken sich keine Quelle: jede ist ein eigenständiges Projekt
+            if (!fresh) this.store.update(p.id, { source });
             await this.store.writeFiles(p.id, linked.files.length > 0 ? linked.files : STARTER_FILES);
             if (linked.spritesheetBase64) {
                 try { await this.store.writeSpritesheet(p.id, base64ToBytes(linked.spritesheetBase64)); }
@@ -1040,6 +1463,18 @@ export class App {
             clean();
             return { error: e?.message || String(e) };
         }
+    }
+
+    /**
+     * Startansicht bei Projekten mit Lernpfad: Bausteine schmal, Ansicht rechts breit (nicht volle Breite).
+     * „Verkleinern“ führt zurück zur Ansicht von vorher.
+     */
+    private showLernpfadLayout() {
+        const v = this.getViewState();
+        if (v.mode == "infoWide" && !v.blocksWide) return;
+        const before = v.mode == "infoWide" || v.mode == "infoFull" ? v.before : { mode: v.mode, blocksWide: v.blocksWide };
+        this.setViewState({ mode: "infoWide", blocksWide: false, before: before ?? { mode: "normal", blocksWide: false } });
+        this.applyLayout();
     }
 
     private lernpfadStateKey() {
@@ -1068,7 +1503,15 @@ export class App {
             + `setItem:function(k,v){d[String(k)]=String(v);save();},removeItem:function(k){delete d[String(k)];save();},`
             + `clear:function(){d={};save();},key:function(i){return Object.keys(d)[i]||null;}};`
             + `Object.defineProperty(s,"length",{get:function(){return Object.keys(d).length;}});`
-            + `try{Object.defineProperty(window,"localStorage",{value:s,configurable:true});}catch(e){}})();<\/script>`;
+            + `try{Object.defineProperty(window,"localStorage",{value:s,configurable:true});}catch(e){}})();<\/script>`
+            // Links im Lernpfad: Ein srcdoc-Rahmen hat die Adresse von JPad als Basis. Safari lädt deshalb bei
+            // Sprunglinks („#s3“) JPad im Rahmen neu (→ „IDBFactory.open() … invalid security context“).
+            // Sprunglinks scrollen wir selbst, relative Links bleiben wirkungslos, externe öffnen in einem neuen Tab.
+            + `<script>document.addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href]");if(!a)return;`
+            + `var h=a.getAttribute("href")||"";if(h.charAt(0)=="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1));`
+            + `var t=id?(document.getElementById(id)||document.getElementsByName(id)[0]):document.body;if(t)t.scrollIntoView({behavior:"smooth",block:"start"});return;}`
+            + `if(/^(https?:|mailto:)/i.test(h)){if(!a.target){e.preventDefault();window.open(a.href,"_blank","noopener");}return;}`
+            + `if(!/^(data:|blob:|javascript:)/i.test(h))e.preventDefault();},true);<\/script>`;
         // möglichst früh einfügen, damit die Skripte des Lernpfads den Ersatz schon vorfinden
         const m = html.match(/<head[^>]*>/i) || html.match(/<html[^>]*>/i);
         return m ? html.replace(m[0], m[0] + shim) : shim + html;
@@ -1088,6 +1531,7 @@ export class App {
             this.markModified();
             this.closeDrawer();
             this.setSideView("lernpfad");
+            this.showLernpfadLayout();
             this.toast(`Lernpfad „${file.name}“ eingebettet. Er wird mit dem Projekt als Datei gesichert.`, "check", 4000);
         } catch (e: any) {
             this.dialogs.alert({ title: "Lernpfad lässt sich nicht einbetten", text: e?.message || String(e) });
@@ -1203,20 +1647,85 @@ export class App {
         this.el.drawer.setAttribute("inert", "");
     }
 
-    /** Editor auf voller Breite (Ausgabe/Variablen/Probleme als Reiter unten), nur im Querformat relevant */
-    getEditorFullWidth(): boolean {
-        try { return localStorage.getItem("jpad.editorFullWidth") == "1"; } catch (e) { return false; }
+    /** Spaltenaufteilung im Querformat (siehe applyLayout), im Browser gemerkt */
+    getViewState(): ViewState {
+        try {
+            const v = JSON.parse(localStorage.getItem("jpadblox.view") || "null");
+            const modes = ["normal", "editorWide", "editorFull", "infoWide", "infoFull"];
+            if (v && modes.includes(v.mode)) return { mode: v.mode, blocksWide: !!v.blocksWide, before: v.before };
+        } catch (e) { }
+        return { mode: "normal", blocksWide: false };
     }
 
-    setEditorFullWidth(on: boolean) {
-        try { localStorage.setItem("jpad.editorFullWidth", on ? "1" : "0"); } catch (e) { }
+    setViewState(v: ViewState) {
+        try { localStorage.setItem("jpadblox.view", JSON.stringify(v)); } catch (e) { }
     }
 
     getThemeChoice(): ThemeChoice {
         try { return <ThemeChoice>(localStorage.getItem("jpad.theme") || "auto"); } catch (e) { return "auto"; }
     }
 
+    // ----- Themes (Auswahl im Menü „Darstellung“), jeweils hell und dunkel -----
+
+    getSkin(): Skin {
+        try {
+            const s = localStorage.getItem("jpadblox.skin");
+            // früher „candy“ (Bonbon), jetzt das flache Theme
+            return s == "candy" ? "flat" : SKINS.some(k => k.id == s) ? <Skin>s : "default";
+        } catch (e) { return "default"; }
+    }
+
+    setSkin(skin: Skin) {
+        try { localStorage.setItem("jpadblox.skin", skin); } catch (e) { }
+        this.applyTheme(this.getThemeChoice());
+        this.renderSkinButton();
+        this.alignBulbSoon();
+    }
+
+    /** Das Symbol zeigt, was beim nächsten Tippen kommt. */
+    // ------------------------------------------------ Ganz schmale Bausteinleiste
+
+    private blocksTiny(): boolean {
+        try { return localStorage.getItem("jpadblox.blocksTiny") == "1"; } catch (e) { return false; }
+    }
+
+    private setBlocksTiny(on: boolean) {
+        try { localStorage.setItem("jpadblox.blocksTiny", on ? "1" : "0"); } catch (e) { }
+    }
+
+    // ------------------------------------------------ Kompakte Ansicht (Kopfzeilen zugeklappt)
+
+    private loadCompact(): boolean {
+        try { return localStorage.getItem("jpadblox.compact") == "1"; } catch (e) { return false; }
+    }
+
+    /**
+     * JPadBlox: Kopfzeile, Dateireiter, Bausteine-Kopf und Umschalter der rechten Ansicht zuklappen.
+     * Knöpfe, Reiter und Umschalter bleiben als antippbare Striche erhalten (siehe CSS [data-compact]).
+     */
+    setCompact(on: boolean) {
+        this.root.dataset.compact = String(on);
+        try { localStorage.setItem("jpadblox.compact", on ? "1" : "0"); } catch (e) { }
+        const b = this.el.collapseBtn;
+        const label = on ? "Kopfzeilen wieder aufklappen" : "Kopfzeilen zuklappen: mehr Platz für Code (Knöpfe und Reiter bleiben als Striche antippbar)";
+        b.innerHTML = icon(on ? "foldDown" : "foldUp");
+        b.setAttribute("aria-label", label);
+        b.setAttribute("aria-pressed", String(on));
+        b.title = label;
+        b.dataset.tip = label;
+        this.alignBulbSoon();
+        requestAnimationFrame(() => this.editor?.view.requestMeasure());
+    }
+
+    /** Auswahl im Menü: gewähltes Theme markieren */
+    renderSkinButton() {
+        const s = this.getSkin();
+        this.el.skinPicker?.querySelectorAll<HTMLElement>("[data-skin-choice]").forEach(b =>
+            b.setAttribute("aria-pressed", String(b.dataset.skinChoice == s)));
+    }
+
     effectiveTheme(): "light" | "dark" {
+        const skin = this.getSkin();
         const c = this.getThemeChoice();
         if (c == "auto") return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
         return c;
@@ -1230,17 +1739,27 @@ export class App {
 
     applyTheme(c: ThemeChoice) {
         document.documentElement.dataset.theme = c;
+        const skin = this.getSkin();
+        if (skin == "default") delete document.documentElement.dataset.skin;
+        else {
+            document.documentElement.dataset.skin = skin;
+            loadSkinFonts();
+        }
         const eff = this.effectiveTheme();
         document.documentElement.dataset.effective = eff;
         const ide = this.root.querySelector<HTMLDivElement>(".jp-ide");
         if (ide) new ThemeManager(ide).switchTheme(eff);
         if (this.el.variables) new ThemeManager(<HTMLDivElement>this.el.variables).switchTheme(eff);
         const meta = document.querySelectorAll('meta[name="theme-color"]');
-        meta.forEach(m => m.setAttribute("content", eff == "dark" ? "#151922" : "#F3F5F9"));
+        const bar = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+        meta.forEach(m => m.setAttribute("content", bar || (eff == "dark" ? "#151922" : "#F3F5F9")));
     }
 
     getFontSize(): number {
-        try { return parseInt(localStorage.getItem("jpad.fontSize") || "") || 16; } catch (e) { return 16; }
+        // iPad (Touch, kein Handy): standardmäßig zwei Stufen kleiner
+        const touch = matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 1;
+        const def = touch && Math.min(screen.width, screen.height) >= 600 ? 14 : 16;
+        try { return parseInt(localStorage.getItem("jpad.fontSize") || "") || def; } catch (e) { return def; }
     }
 
     changeFontSize(delta: number) {
@@ -1300,6 +1819,22 @@ export class App {
         } else {
             this.toast(`Code der Datei „${files[0].name.replace(/\.java$/, "")}“ in die Zwischenablage kopiert. ` + hint, "copyFile", 5000);
         }
+    }
+
+    private hintTimer: any;
+    /** Kurzer, dezenter Hinweis unten (ohne Symbol, verschwindet schnell) */
+    hint(text: string, duration: number = 1800) {
+        let h = this.root.querySelector<HTMLElement>(".jp-tapnote");
+        if (!h) {
+            h = document.createElement("div");
+            h.className = "jp-tapnote";
+            h.setAttribute("role", "status");
+            this.root.appendChild(h);
+        }
+        h.textContent = text;
+        h.classList.add("is-visible");
+        clearTimeout(this.hintTimer);
+        this.hintTimer = setTimeout(() => h!.classList.remove("is-visible"), duration);
     }
 
     toast(text: string, iconName: string = "info", duration: number = 3200) {
