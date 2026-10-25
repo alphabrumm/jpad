@@ -3263,3 +3263,6 @@ html.phone .jp-keybar-markextra { padding: 0 4px; }
 .jp-app[data-compact="true"] .jp-topbar .jp-jcode-badge { visibility: hidden; }
 html.phone .jp-jcode-badge span { display: none; }
 .jp-app:not([data-wide="true"]) .jp-jcode-badge span { display: none; }
+/* Markier-Modus: Aus-/Einkommentieren (rechts neben „Zeile löschen“), nur beim Festlegen */
+.jp-keybar.is-placing [data-action="commentBlock"] { display: none !important; }
+.jp-keybar .jp-key-comment .jp-key-slashes { font-family: var(--font-code); font-weight: 700; font-size: 17px; color: var(--syn-comment, var(--ink-2)); letter-spacing: -0.04em; }

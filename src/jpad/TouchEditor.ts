@@ -932,6 +932,33 @@ export class TouchEditor {
         return true;
     }
 
+    /**
+     * Beim Festlegen: die markierten Zeilen aus- bzw. wieder einkommentieren (wie der Baustein „//“).
+     * Ist mindestens eine davon schon auskommentiert, werden alle einkommentiert. Im Spaltenmodus gilt das für
+     * alle Zeilen, die das Rechteck berührt. Die Markierung bleibt bestehen. Liefert false außerhalb dieser Phase.
+     */
+    commentMarked(): boolean {
+        if (!this.marking || this.markPhase != "select") return false;
+        const doc = this.view.state.doc, r = this.markedRect();
+        const code = [];
+        for (let n = r.a; n <= r.b; n++) { const l = doc.line(n); if (l.text.trim() != "") code.push(l); }
+        if (code.length == 0) return true;
+        const changes: { from: number, to: number, insert: string }[] = [];
+        if (code.some(l => /^\s*\/\//.test(l.text))) {
+            for (const l of code) {
+                const m = /^(\s*)\/\/ ?/.exec(l.text);
+                if (m) changes.push({ from: l.from + m[1].length, to: l.from + m[0].length, insert: "" });
+            }
+        } else {
+            // alle Zeilen an derselben Spalte (kleinste Einrückung) auskommentieren
+            const indent = Math.min(...code.map(l => /^\s*/.exec(l.text)![0].length));
+            for (const l of code) changes.push({ from: l.from + indent, to: l.from + indent, insert: "// " });
+        }
+        this.view.dispatch({ changes, userEvent: "input" });
+        this.showMark();
+        return true;
+    }
+
     /** Schritt 3: Markiertes ausschneiden (remove) oder kopieren – in den eigenen Speicher */
     private takeMarked(remove: boolean): boolean {
         if (!this.marking || this.markPhase != "select") return false;

@@ -233,3 +233,7 @@ GNU GPL v3, wie die Online-IDE.
   das postbuild mit Titel, Art und JCode erzeugt) – je Eintrag JCode, kopierbarer Link und „Öffnen“ (frische Kopie, `&neu=1`).
   Gilt für den Tab (sessionStorage `jpad.lehrkraft`): Menüeintrag „Lehrkraft: alle Lernpfade“ und der JCode des geöffneten Projekts
   fett neben dem Projektnamen (ProjectInfo.jcode, beim Öffnen per Link aus learn/<Klasse>/… berechnet). Schüler sehen davon nichts.
+- Markier-Modus: Knopf „//“ rechts neben „Zeile löschen“ (nur beim Festlegen) kommentiert die markierten Zeilen aus bzw. wieder ein
+  (gleiche Regel wie der Baustein „//“; im Spaltenmodus alle Zeilen, die das Rechteck berührt). Die Markierung bleibt bestehen.
+- Vogelflug Station 3: Auftrag „Aufräumen und ein zweites Lied“ (Kommentare löschen, singen kopieren, Doppel-Fehler, alte Methode
+  auskommentieren, ohne Lösung ausprobieren). Vogel.java ohne Kommentare am Zeilenende.

@@ -79,6 +79,7 @@ export class KeyBar {
                 <button data-action="mark" class="jp-key-mark" aria-label="Markier-Modus" aria-pressed="false" data-tip="Markier-Modus: Die Zeile mit dem Cursor ist der Anfang. Tippe auf eine andere Zeile – alles dazwischen ist markiert. Dann ausschneiden, Zeilen löschen oder an anderer Stelle einfügen.">${icon("markMode")}</button>
                 <button data-action="lineAdd" class="jp-key-line" aria-label="Neue Zeile einfügen" data-tip="Neue, leere Zeile unter der Zeile mit dem Cursor einfügen (richtig eingerückt)">${icon("lineAdd")}</button>
                 <button data-action="lineDelete" class="jp-key-line" aria-label="Zeile löschen" data-tip="Zeile, in der der Cursor steht, löschen">${icon("lineDelete")}</button>
+                <button data-action="commentBlock" class="jp-mark-only jp-key-comment" aria-label="Markierte Zeilen aus- oder einkommentieren" data-tip="Markierte Zeilen auskommentieren (// davor) – sind sie schon auskommentiert, werden sie wieder einkommentiert"><span class="jp-key-slashes">//</span></button>
                 <button data-action="cutBlock" class="jp-mark-only" aria-label="Markierten Block ausschneiden" data-tip="Markierten Block ausschneiden – danach Einfügestelle antippen und einfügen">${icon("cut")}</button>
                 <button data-action="copyBlock" class="jp-mark-only" aria-label="Markierten Block kopieren" data-tip="Markierten Block kopieren – danach Einfügestelle antippen und einfügen">${icon("copy")}</button>
                 <button data-action="pasteBlock" class="jp-mark-only" aria-label="Einfügen" data-tip="Text aus der Zwischenablage einfügen (ganze Zeilen vor der Zeile mit dem Cursor)">${icon("paste")}</button>`;
@@ -401,6 +402,9 @@ ${rightKeys}
                 this.renderMarking();
                 break;
             }
+            case "commentBlock":
+                this.editor.commentMarked();
+                break;
             case "copyBlock":
                 this.editor.copyMarked();
                 this.renderMarking();
