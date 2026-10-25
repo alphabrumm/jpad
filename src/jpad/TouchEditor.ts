@@ -918,7 +918,7 @@ export class TouchEditor {
         return { rows, ranges, topLeft: first.from + findColumn(first.text, r.c1, this.tab) };
     }
 
-    /** „Zeile löschen“ beim Festlegen: markierte Zeilen bzw. nur das Rechteck löschen. Liefert false sonst. */
+    /** „Zeile löschen“ beim Festlegen: markierte Zeilen bzw. nur das Rechteck löschen, danach Modus aus. Liefert false sonst. */
     deleteMarked(): boolean {
         if (!this.marking || this.markPhase != "select") return false;
         if (this.markColumns) {
@@ -928,21 +928,21 @@ export class TouchEditor {
             const { from, to } = this.markedLines();
             this.view.dispatch({ changes: { from, to }, selection: { anchor: from }, scrollIntoView: true });
         }
-        this.resetMarkToCursor();
+        this.stopMarking();   // wie nach dem Einfügen: fertig, Modus aus
         return true;
     }
 
     /**
      * Beim Festlegen: die markierten Zeilen aus- bzw. wieder einkommentieren (wie der Baustein „//“).
      * Ist mindestens eine davon schon auskommentiert, werden alle einkommentiert. Im Spaltenmodus gilt das für
-     * alle Zeilen, die das Rechteck berührt. Die Markierung bleibt bestehen. Liefert false außerhalb dieser Phase.
+     * alle Zeilen, die das Rechteck berührt. Danach ist der Markier-Modus aus. Liefert false außerhalb dieser Phase.
      */
     commentMarked(): boolean {
         if (!this.marking || this.markPhase != "select") return false;
         const doc = this.view.state.doc, r = this.markedRect();
         const code = [];
         for (let n = r.a; n <= r.b; n++) { const l = doc.line(n); if (l.text.trim() != "") code.push(l); }
-        if (code.length == 0) return true;
+        if (code.length == 0) { this.stopMarking(); return true; }
         const changes: { from: number, to: number, insert: string }[] = [];
         if (code.some(l => /^\s*\/\//.test(l.text))) {
             for (const l of code) {
@@ -955,7 +955,7 @@ export class TouchEditor {
             for (const l of code) changes.push({ from: l.from + indent, to: l.from + indent, insert: "// " });
         }
         this.view.dispatch({ changes, userEvent: "input" });
-        this.showMark();
+        this.stopMarking();
         return true;
     }
 

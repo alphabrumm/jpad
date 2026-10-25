@@ -237,3 +237,4 @@ GNU GPL v3, wie die Online-IDE.
   (gleiche Regel wie der Baustein „//“; im Spaltenmodus alle Zeilen, die das Rechteck berührt). Die Markierung bleibt bestehen.
 - Vogelflug Station 3: Auftrag „Aufräumen und ein zweites Lied“ (Kommentare löschen, singen kopieren, Doppel-Fehler, alte Methode
   auskommentieren, ohne Lösung ausprobieren). Vogel.java ohne Kommentare am Zeilenende.
+- Markier-Modus: Nach „Zeile löschen“ (markierte Zeilen bzw. Rechteck) und nach „//“ ist der Modus automatisch aus – wie nach dem Einfügen.

@@ -404,6 +404,7 @@ ${rightKeys}
             }
             case "commentBlock":
                 this.editor.commentMarked();
+                this.renderMarking();
                 break;
             case "copyBlock":
                 this.editor.copyMarked();
@@ -419,7 +420,10 @@ ${rightKeys}
                 this.applyMode();
                 break;
             case "lineAdd": this.editor.insertLine(); break;
-            case "lineDelete": if (this.field || !this.editor.deleteMarked()) this.editor.deleteLine(); break;
+            case "lineDelete":
+                if (this.field || !this.editor.deleteMarked()) this.editor.deleteLine();
+                this.renderMarking();
+                break;
             case "left": case "right": {
                 // Markier-Modus: Endzeile bzw. Einfügezeile eine Zeile nach oben/unten
                 if (!this.field && this.editor.moveMarkCol(action == "left" ? -1 : 1)) break;
