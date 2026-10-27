@@ -3266,3 +3266,16 @@ html.phone .jp-jcode-badge span { display: none; }
 /* Markier-Modus: Aus-/Einkommentieren (rechts neben „Zeile löschen“), nur beim Festlegen */
 .jp-keybar.is-placing [data-action="commentBlock"] { display: none !important; }
 .jp-keybar .jp-key-comment .jp-key-slashes { font-family: var(--font-code); font-weight: 700; font-size: 17px; color: var(--syn-comment, var(--ink-2)); letter-spacing: -0.04em; }
+
+/* ===================================================================================
+   Markier-Modus: nur die Bausteine, die markierte Zeilen umschließen können – sie pulsieren leicht
+   =================================================================================== */
+html.jp-marking .jp-blockpanel .jp-block:not([data-surround]) { display: none !important; }
+html.jp-marking .jp-blockpanel .jp-blockgroup:not(.jp-blockgroup-more):not(:has(.jp-block[data-surround])) { display: none !important; }
+html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: jp-surround-pulse 1.6s ease-in-out infinite; }
+@keyframes jp-surround-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
+    50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: none; outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); } }
+.jp-surround-preview code { white-space: pre; }

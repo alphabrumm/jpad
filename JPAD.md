@@ -238,3 +238,8 @@ GNU GPL v3, wie die Online-IDE.
 - Vogelflug Station 3: Auftrag „Aufräumen und ein zweites Lied“ (Kommentare löschen, singen kopieren, Doppel-Fehler, alte Methode
   auskommentieren, ohne Lösung ausprobieren). Vogel.java ohne Kommentare am Zeilenende.
 - Markier-Modus: Nach „Zeile löschen“ (markierte Zeilen bzw. Rechteck) und nach „//“ ist der Modus automatisch aus – wie nach dem Einfügen.
+- **Markier-Modus „umschließen mit …“**: Beim Festlegen zeigt die Bausteinleiste nur Klasse, Methode, if, while (unter „Mehr…“: for,
+  for-each, else, do – while); sie pulsieren leicht. Antippen übernimmt die markierten Zeilen als Auswahl (`selectMarkedLines`), beendet
+  den Modus und umschließt sie: Vorlagen direkt (Cursor in der ersten Eingabestelle, z. B. Bedingung), if/Methode/Klasse über ihren Dialog
+  mit Vorschau samt markierter Zeilen. Methode: Zeilen wandern in den Rumpf der neuen Methode (Ort wie sonst); Klasse: „hier einfügen“
+  umschließt an Ort und Stelle, „als Datei“ verschiebt die Zeilen in die neue Datei. Esc auf der Tastatur beendet den Markier-Modus.

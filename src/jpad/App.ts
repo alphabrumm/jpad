@@ -208,6 +208,7 @@ export class App {
             },
             fileExists: (name) => this.main.getFiles().some(f => f.name.toLowerCase() == (name + ".java").toLowerCase()),
             hint: (text) => this.hint(text),
+            surroundFromMark: () => this.editor.selectMarkedLines(),
             conditionField: (host, f) => {
                 // Es gilt, was am Anfang der Cursorzeile sichtbar ist (dort bzw. darunter landet der Baustein)
                 const v = this.editor.view, line = v.state.doc.lineAt(v.state.selection.main.head);

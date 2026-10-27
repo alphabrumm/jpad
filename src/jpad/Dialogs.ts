@@ -703,7 +703,8 @@ export class Dialogs {
      * JPadBlox: „Baue Deine neue Methode“ – Name, Rückgabetyp (void oder Datentyp) und Parameter.
      * Parameter kommen einzeln mit „+ Parameter hinzufügen“ dazu (anfangs keiner); Zeilen ohne Namen zählen nicht.
      */
-    method(o: { groups: { label: string, items: string[] }[], validate: (name: string) => string | null }):
+    method(o: { groups: { label: string, items: string[] }[], validate: (name: string) => string | null,
+        preview?: (m: { name: string, returnType: string, params: { type: string, name: string }[] }) => string }):
         Promise<{ name: string, returnType: string, params: { type: string, name: string }[] } | null> {
         const typeOptions = o.groups.filter(g => g.items.length > 0).map(g =>
             `<optgroup label="${escapeHtml(g.label)}">${g.items.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("")}</optgroup>`
@@ -733,6 +734,7 @@ export class Dialogs {
                     <div class="jp-param-rows"></div>
                     <button type="button" class="jp-btn jp-btn-small" data-addparam>+ Parameter hinzufügen</button>
                 </div>
+                ${o.preview ? `<div class="jp-preview jp-surround-preview" aria-live="polite"><span class="jp-preview-label">Vorschau</span><code data-preview></code></div>` : ""}
                 <p class="jp-field-error" aria-live="polite"></p>
                 <div class="jp-sheet-buttons">
                     <button type="button" class="jp-btn" data-cancel>Abbrechen</button>
@@ -767,9 +769,22 @@ export class Dialogs {
             const rows = sheet.querySelector<HTMLElement>(".jp-param-rows")!;
             setTimeout(() => nameInput.focus(), 60);
             sheet.addEventListener("input", () => error.textContent = "");
+            // Markier-Modus: Vorschau der Methode mit den markierten Zeilen im Rumpf
+            const previewEl = sheet.querySelector<HTMLElement>("[data-preview]");
+            const refreshPreview = () => {
+                if (!previewEl || !o.preview) return;
+                const params = [...rows.querySelectorAll<HTMLElement>(".jp-param-row")]
+                    .map(r => ({ type: r.querySelector("select")!.value, name: r.querySelector("input")!.value.trim() }))
+                    .filter(p => p.name != "");
+                previewEl.innerHTML = highlightJava(o.preview({ name: nameInput.value.trim(), returnType: sheet.querySelector<HTMLSelectElement>("[data-return]")!.value, params }));
+            };
+            sheet.addEventListener("input", refreshPreview);
+            sheet.addEventListener("change", refreshPreview);
+            refreshPreview();
             sheet.querySelector("[data-addparam]")!.addEventListener("click", () => {
                 rows.insertAdjacentHTML("beforeend", paramRow);
                 rows.querySelector<HTMLInputElement>(".jp-param-row:last-child input")?.focus();
+                refreshPreview();
             });
             sheet.querySelector("form")!.addEventListener("submit", (e) => {
                 e.preventDefault();
@@ -793,7 +808,7 @@ export class Dialogs {
      * JPadBlox: Dialog des Bausteins class – Name der Klasse, rechts (ausblendbar) die Skizze
      * „Aus der Klasse werden Objekte“. Liefert den Namen oder null.
      */
-    className(o: { validate: (name: string, where: "file" | "here") => string | null }): Promise<{ name: string, where: "file" | "here" } | null> {
+    className(o: { validate: (name: string, where: "file" | "here") => string | null, preview?: (name: string) => string }): Promise<{ name: string, where: "file" | "here" } | null> {
         return this.open(`
             <div class="jp-method-split">
             <div class="jp-method-input">
@@ -807,6 +822,7 @@ export class Dialogs {
                     <span>Wie soll deine Klasse heißen?</span>
                     <input type="text" data-ident autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="words" enterkeyhint="done">
                 </label>
+                ${o.preview ? `<div class="jp-preview jp-surround-preview" aria-live="polite"><span class="jp-preview-label">Vorschau</span><code data-preview></code></div>` : ""}
                 <p class="jp-field-error" aria-live="polite"></p>
                 <div class="jp-choice-list">
                     <button type="button" class="jp-choice" data-where="file">
@@ -829,6 +845,10 @@ export class Dialogs {
             const error = sheet.querySelector<HTMLElement>(".jp-field-error")!;
             setTimeout(() => input.focus(), 60);
             input.addEventListener("input", () => error.textContent = "");
+            const previewEl = sheet.querySelector<HTMLElement>("[data-preview]");
+            const refreshPreview = () => { if (previewEl && o.preview) previewEl.innerHTML = highlightJava(o.preview(input.value)); };
+            input.addEventListener("input", refreshPreview);
+            refreshPreview();
             const choose = (where: "file" | "here") => {
                 const msg = o.validate(input.value, where);
                 if (msg) { error.textContent = msg; input.focus(); return; }

@@ -159,13 +159,46 @@ export type BlockContext = {
     hint: (text: string) => void;
     /** Eingabefeld mit Code Completion für Stellen an der Cursorposition (Bedingungen im if-Dialog) */
     conditionField?: (host: HTMLElement, f: { placeholder: string, onChange: () => void, onEnter: () => void }) => FieldHandle;
+    /** Markier-Modus: markierte Zeilen als Auswahl übernehmen und den Modus beenden (true, wenn Zeilen markiert waren) */
+    surroundFromMark?: () => boolean;
 };
+
+/** Bausteine, die im Markier-Modus sichtbar bleiben: Sie umschließen die markierten Zeilen */
+export const SURROUND_LABELS = new Set(["Klasse", "Methode", "if", "while", "for", "for-each", "else", "do – while"]);
+
+/** Die ausgewählten ganzen Zeilen: Text relativ zur Einrückung der ersten Zeile, Bereich im Dokument */
+function selectedLines(view: EditorView) {
+    const state = view.state, doc = state.doc, sel = state.selection.main;
+    const first = doc.lineAt(sel.from);
+    let last = doc.lineAt(sel.to);
+    if (last.number > first.number && sel.to == last.from) last = doc.line(last.number - 1);
+    const base = /^\s*/.exec(first.text)![0];
+    const lines: string[] = [];
+    for (let n = first.number; n <= last.number; n++) {
+        const t = doc.line(n).text;
+        lines.push(t.trim() == "" ? "" : (t.startsWith(base) ? t.slice(base.length) : t.replace(/^\s*/, "")));
+    }
+    return { lines, first, last, base };
+}
+
+/** Ausgewählte Zeilen samt Zeilenumbruch aus dem Dokument entfernen; Cursor an ihre Stelle */
+function removeLines(view: EditorView, first: { from: number, number: number }, last: { to: number, number: number }) {
+    const doc = view.state.doc;
+    const from = last.number < doc.lines ? first.from : Math.max(0, first.from - 1);
+    const to = last.number < doc.lines ? last.to + 1 : last.to;
+    view.dispatch({ changes: { from, to }, selection: EditorSelection.cursor(from) });
+}
+
+/** Zeilen für die Vorschau eines Dialogs (eine Stufe eingerückt) */
+const previewBody = (lines: string[]) => lines.map(l => l == "" ? "" : "   " + l).join("\n");
 
 /** Fügt den Baustein ein (bzw. umschließt die markierten Zeilen) und formatiert danach den Code. */
 export async function insertBlock(ctx: BlockContext, block: Block) {
     const view = ctx.view;
     // Hatte der Editor beim Antippen den Fokus (Cursor gesetzt)? Wichtig für den Ort einer neuen Klasse
     const hadFocus = view.hasFocus;
+    // Markier-Modus: Der Baustein umschließt die markierten Zeilen („umschließen mit …“)
+    const surround = SURROUND_LABELS.has(block.label) && !!ctx.surroundFromMark?.();
     let done = true;
     switch (block.kind) {
         case "attribut":
@@ -186,7 +219,7 @@ export async function insertBlock(ctx: BlockContext, block: Block) {
             cycleVisibility(ctx);
             break;
         case "if":
-            done = await insertIf(ctx, block);
+            done = await insertIf(ctx, block, surround);
             break;
         case "constructor": {
             const choice = await ctx.dialogs.constructorChoice();
@@ -198,10 +231,10 @@ export async function insertBlock(ctx: BlockContext, block: Block) {
             done = await insertAccessors(ctx);
             break;
         case "method":
-            done = await insertMethod(ctx);
+            done = await insertMethod(ctx, surround);
             break;
         case "class":
-            done = await insertClass(ctx, hadFocus);
+            done = await insertClass(ctx, hadFocus, surround);
             break;
         default:
             insertTemplate(view, block);
@@ -364,8 +397,10 @@ function setVisibility(view: EditorView, keyword: string) {
  * Neue Klasse: Name im Dialog. Mit Cursor im Editor an der Cursorstelle (eigene Zeile), sonst unter der
  * letzten Zeile mit Code (zwei Leerzeilen Abstand), in einer leeren Datei ganz oben.
  */
-async function insertClass(ctx: BlockContext, hadFocus: boolean): Promise<boolean> {
+async function insertClass(ctx: BlockContext, hadFocus: boolean, surround = false): Promise<boolean> {
+    const body = surround ? selectedLines(ctx.view) : null;
     const result = await ctx.dialogs.className({
+        preview: body ? (n) => `class ${n.trim() || "…"} {\n${previewBody(body.lines)}\n}` : undefined,
         validate: (n, where) => {
             const msg = validateName(n);
             if (msg) return msg;
@@ -376,6 +411,20 @@ async function insertClass(ctx: BlockContext, hadFocus: boolean): Promise<boolea
     });
     if (!result) return false;
     const name = result.name;
+    if (body) {
+        const view = ctx.view;
+        if (result.where == "file") {
+            // Markierte Zeilen wandern in die neue Datei
+            removeLines(view, body.first, body.last);
+            const indent = view.state.facet(indentUnit);
+            const head = `class ${name} {\n`;
+            const inner = body.lines.map(l => l == "" ? "" : indent + l).join("\n");
+            ctx.createFile(name, head + inner + "\n}\n", head.length + indent.length);
+            return true;
+        }
+        insertTemplate(view, { group: "klasse", label: "Klasse", kind: "line", tpl: `class ${name} {\n\t§\n}`, tip: "" });
+        return true;
+    }
     if (result.where == "file") {
         // Neue Datei (Reiter) mit dem Klassengerüst, Cursor im Klassenrumpf
         const indent = ctx.view.state.facet(indentUnit);
@@ -667,9 +716,15 @@ function ifText(r: IfResult, snippetMode: boolean): string {
     return t;
 }
 
-async function insertIf(ctx: BlockContext, block: Block): Promise<boolean> {
+async function insertIf(ctx: BlockContext, block: Block, surround = false): Promise<boolean> {
+    const body = surround ? selectedLines(ctx.view).lines : null;
     const r = await ctx.dialogs.ifStatement({
-        build: (x) => ifText(x, false).replace(/\t/g, "   "),
+        // Markier-Modus: die markierten Zeilen stehen in der Vorschau schon im if-Rumpf
+        build: (x) => {
+            let s = ifText(x, false);
+            if (body) s = s.replace("\n\t…\n", "\n" + body.map(l => l == "" ? "" : "\t" + l).join("\n") + "\n");
+            return s.replace(/\t/g, "   ");
+        },
         field: ctx.conditionField,
     });
     if (!r) return false;
@@ -681,22 +736,31 @@ async function insertIf(ctx: BlockContext, block: Block): Promise<boolean> {
 
 // ---------------------------------------------------------------- Methode
 
-async function insertMethod(ctx: BlockContext): Promise<boolean> {
+async function insertMethod(ctx: BlockContext, surround = false): Promise<boolean> {
+    const body = surround ? selectedLines(ctx.view) : null;
     const own = ctx.projectTypes().filter(t => !BASIC_TYPES.includes(t));
     const groups = [
         { label: "Grundtypen", items: BASIC_TYPES },
         { label: "Eigene Klassen", items: own },
         { label: "Klassenbibliothek", items: libraryTypes().filter(t => !own.includes(t)) },
     ];
-    const r = await ctx.dialogs.method({ groups, validate: validateName });
+    const r = await ctx.dialogs.method({
+        groups, validate: validateName,
+        // Markier-Modus: Vorschau mit den markierten Zeilen im Methodenrumpf
+        preview: body ? (m) => `${m.returnType} ${m.name || "…"}(${m.params.map(p => `${p.type} ${p.name}`).join(", ")}) {\n${previewBody(body.lines)}`
+            + (m.returnType == "void" ? "" : "\n   return …;") + "\n}" : undefined,
+    });
     if (!r) return false;
     const view = ctx.view;
+    // Markierte Zeilen wandern in den Rumpf der neuen Methode
+    if (body) removeLines(view, body.first, body.last);
     prepareMemberLine(view, "end");
     blankLineAbove(view);
     const params = r.params.map(p => `${p.type} ${p.name}`).join(", ");
+    const inner = body ? body.lines.map(l => l == "" ? "" : "\t" + escapeForSnippet(l)).join("\n") : "\t${}";
     const tpl = r.returnType == "void"
-        ? `void ${r.name}(${escapeForSnippet(params)}) {\n\t\${}\n}`
-        : `${r.returnType} ${r.name}(${escapeForSnippet(params)}) {\n\t\${}\n\treturn \${Wert};\n}`;
+        ? `void ${r.name}(${escapeForSnippet(params)}) {\n${inner}\n}`
+        : `${r.returnType} ${r.name}(${escapeForSnippet(params)}) {\n${inner}\n\treturn \${Wert};\n}`;
     const pos = view.state.selection.main.head;
     snippet(tpl)(view, null, pos, pos);
     return true;
@@ -1058,7 +1122,7 @@ function chipHtml(b: Block, i: number): string {
     // Das Kurzzeichen als Text steht in data-ico (per CSS angezeigt), damit der Text des Knopfs der Name bleibt
     const ico = !ic ? "" : ic.svg ? `<span class="jp-block-ico" aria-hidden="true">${ic.svg}</span>`
         : `<span class="jp-block-ico" aria-hidden="true" data-ico="${ic.text!.replace(/"/g, "&quot;")}"></span>`;
-    return `<button class="jp-block" data-block="${i}" data-group="${b.group}"${b.help ? ` data-help="${b.help}"` : ""} aria-label="${b.label.replace(/"/g, "&quot;")}" data-tip="${blockTip(b).replace(/"/g, "&quot;")}">${ico}<span class="jp-block-label"${PANEL_ALT_LABEL[b.label] ? ` data-alt="${PANEL_ALT_LABEL[b.label]}"` : ""}>${b.label.replace(/</g, "&lt;")}</span></button>`;
+    return `<button class="jp-block" data-block="${i}" data-group="${b.group}"${SURROUND_LABELS.has(b.label) ? " data-surround" : ""}${b.help ? ` data-help="${b.help}"` : ""} aria-label="${b.label.replace(/"/g, "&quot;")}" data-tip="${blockTip(b).replace(/"/g, "&quot;")}">${ico}<span class="jp-block-label"${PANEL_ALT_LABEL[b.label] ? ` data-alt="${PANEL_ALT_LABEL[b.label]}"` : ""}>${b.label.replace(/</g, "&lt;")}</span></button>`;
 }
 
 /** Senkrechte Bausteinleiste (linke Spalte im Querformat), nach Gruppen geordnet; ganz unten „Mehr…“ (eingeklappt) */

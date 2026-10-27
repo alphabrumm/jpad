@@ -738,6 +738,8 @@ export class TouchEditor {
 
     /** Markier-Modus aktiv (Knopf blinkt) */
     marking = false;
+    /** Wird bei jedem Wechsel des Markier-Modus aufgerufen (Hilfsleiste aktualisiert ihre Knöpfe) */
+    markListener?: () => void;
     /** select: Block wird festgelegt; cut: Block ist ausgeschnitten bzw. kopiert und wartet aufs Einfügen */
     markPhase: "select" | "cut" = "select";
     /** Spalten statt ganzer Zeilen markieren (Rechteck wie die Block-Auswahl in vim). Startet immer mit Zeilen. */
@@ -768,6 +770,7 @@ export class TouchEditor {
         document.documentElement.classList.remove("jp-marking-cols");
         this.resetMarkToCursor();
         document.documentElement.classList.add("jp-marking");
+        this.markListener?.();
     }
 
     /** Kippschalter Zeilen ↔ Spalten (nur beim Festlegen) */
@@ -794,6 +797,21 @@ export class TouchEditor {
         this.markColumns = false;
         document.documentElement.classList.remove("jp-marking", "jp-marking-cols");
         this.view.dispatch({ effects: [setMarkLines.of(null), setMarkRect.of(null)] });
+        this.markListener?.();
+    }
+
+    /**
+     * Baustein antippen beim Festlegen („umschließen mit …“): Die markierten Zeilen werden zur echten Auswahl
+     * (ganze Zeilen; im Spaltenmodus alle Zeilen, die das Rechteck berührt), der Modus endet.
+     * Liefert false, wenn gerade nichts festgelegt wird.
+     */
+    selectMarkedLines(): boolean {
+        if (!this.marking || this.markPhase != "select") return false;
+        const doc = this.view.state.doc, r = this.markedRect();
+        const first = doc.line(r.a), last = doc.line(r.b);
+        this.stopMarking();
+        this.view.dispatch({ selection: EditorSelection.range(last.to, first.from) });
+        return true;
     }
 
     /** Pulsierende Zeilen bzw. pulsierendes Rechteck passend zur Phase */
@@ -980,6 +998,7 @@ export class TouchEditor {
             selection: remove ? { anchor } : undefined,
             effects: [setMarkLines.of(null), setMarkRect.of(null)], scrollIntoView: true
         });
+        this.markListener?.();
         return true;
     }
     cutMarked(): boolean { return this.takeMarked(true); }

@@ -112,6 +112,14 @@ ${rightKeys}
             </div>`;
         root.appendChild(this.el);
         this.applyMode();
+        // Markier-Modus: Die Knöpfe folgen jedem Wechsel (auch Esc, Baustein umschließen, Einfügen …)
+        this.editor.markListener = () => this.renderMarking();
+        // Esc auf der Tastatur verlässt den Markier-Modus (nicht, solange ein Dialog offen ist)
+        document.addEventListener("keydown", e => {
+            if (e.key != "Escape" || !this.editor.marking || document.querySelector(".jp-sheet-layer")) return;
+            e.preventDefault();
+            this.editor.stopMarking();
+        });
 
         // Fokus im Editor behalten, sonst schließt sich die Tastatur
         // (wie qPad) auch „mousedown“ – das reicht Safari nach dem Fingertipp nach und verschiebt sonst den Fokus
@@ -360,7 +368,7 @@ ${rightKeys}
         this.renderMarking();
     }
 
-    private renderMarking() {
+    renderMarking() {
         const on = this.editor.marking;
         this.el.classList.toggle("is-marking", on);
         this.el.classList.toggle("is-placing", on && this.editor.markPhase == "cut");
