@@ -244,3 +244,6 @@ GNU GPL v3, wie die Online-IDE.
   mit Vorschau samt markierter Zeilen. Methode: Zeilen wandern in den Rumpf der neuen Methode (Ort wie sonst); Klasse: „hier einfügen“
   umschließt an Ort und Stelle, „als Datei“ verschiebt die Zeilen in die neue Datei. Esc auf der Tastatur beendet den Markier-Modus.
 - Untere Ansichts-Leiste (Hochformat iPad/iPhone): Reihenfolge Lernpfad, Code, Ausgabe, …
+- Hinweis „Dreh dein iPad hochkant“: Geht auf dem iPad im Querformat die Bildschirmtastatur auf (also keine echte Tastatur), erscheint
+  einmal pro Sitzung ein Hinweis mit Animation (iPad dreht sich ins Hochformat). „Diesen Hinweis nicht mehr zeigen“ gilt 4 Wochen
+  (localStorage `jpad.rotateHintOff`). Außerdem: alignBulb bricht nicht mehr ab, solange die Oberfläche noch nicht aufgebaut ist.

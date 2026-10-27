@@ -3279,3 +3279,25 @@ html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: jp-surround
 }
 @media (prefers-reduced-motion: reduce) { html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: none; outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); } }
 .jp-surround-preview code { white-space: pre; }
+
+/* ===================================================================================
+   Hinweis: ohne echte Tastatur hochkant (iPad im Querformat, Bildschirmtastatur offen)
+   =================================================================================== */
+.jp-sheet.is-rotate { max-width: 460px; }
+.jp-rotate-anim { display: flex; justify-content: center; margin: 4px 0 10px; color: var(--accent); }
+.jp-rotate-anim svg { width: 200px; height: auto; overflow: visible; }
+.jp-rot-body { fill: var(--surface-2); stroke: var(--ink); stroke-width: 4; }
+.jp-rot-screen { fill: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.jp-rot-cam { fill: var(--ink); }
+.jp-rot-kb rect { fill: color-mix(in srgb, var(--ink-2) 35%, var(--surface)); }
+.jp-rot-kb path { stroke: var(--surface); stroke-width: 1.4; }
+.jp-rot-device { transform-box: view-box; transform-origin: 110px 93px; animation: jp-rot-turn 3.2s ease-in-out infinite; }
+.jp-rot-arrows { opacity: .25; animation: jp-rot-arrows 3.2s ease-in-out infinite; }
+.jp-rot-kb { animation: jp-rot-kb 3.2s ease-in-out infinite; }
+@keyframes jp-rot-turn { 0%, 22% { transform: rotate(0deg); } 52%, 88% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+@keyframes jp-rot-arrows { 0%, 18% { opacity: .2; } 30%, 48% { opacity: 1; } 60%, 100% { opacity: .2; } }
+/* Die Bildschirmtastatur verdeckt im Querformat viel – nach dem Drehen ist der ganze Bildschirm frei */
+@keyframes jp-rot-kb { 0%, 20% { opacity: 1; } 32%, 94% { opacity: 0; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .jp-rot-device { animation: none; transform: rotate(-90deg); } .jp-rot-arrows, .jp-rot-kb { animation: none; } }
+.jp-check-row { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; font-size: 15px; cursor: pointer; }
+.jp-check-row input { width: 20px; height: 20px; accent-color: var(--accent); }

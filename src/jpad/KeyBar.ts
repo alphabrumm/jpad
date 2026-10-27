@@ -61,6 +61,13 @@ export class KeyBar {
     private mode: BarMode = loadMode();
     /** von App gesetzt, sobald alles bereit ist */
     blockContext: BlockContext | null = null;
+    /** Bildschirmtastatur ist gerade aufgegangen (von App gesetzt, z. B. für den Hinweis zum Hochformat) */
+    onKeyboardOpen?: () => void;
+    private setKeyboardOpen(open: boolean) {
+        const was = document.documentElement.classList.contains("keyboard-open");
+        document.documentElement.classList.toggle("keyboard-open", open);
+        if (open && !was) this.onKeyboardOpen?.();
+    }
 
     constructor(root: HTMLElement, private editor: TouchEditor, private bridge: LanguageBridge,
         private showInfo: (html: string | null) => void) {
@@ -206,7 +213,7 @@ ${rightKeys}
                      */
                     document.documentElement.style.setProperty("--app-height", Math.round(vv.height) + "px");
                     document.documentElement.style.setProperty("--keyboard-offset", offset + "px");
-                    document.documentElement.classList.toggle("keyboard-open", open);
+                    this.setKeyboardOpen(open);
                     if (window.scrollY || window.scrollX || vv.offsetTop) window.scrollTo(0, 0);
                     this.editor.view.requestMeasure();
                     return;
@@ -216,7 +223,7 @@ ${rightKeys}
                 if (!force && open === lastOpen && quiet < 700) { timer = setTimeout(update, 700 - quiet); return; }
                 lastOffset = offset; lastOpen = open;
                 document.documentElement.style.setProperty("--keyboard-offset", offset + "px");
-                document.documentElement.classList.toggle("keyboard-open", open);
+                this.setKeyboardOpen(open);
             };
             const touched = () => { lastTouch = Date.now(); };
             document.addEventListener("touchstart", touched, { capture: true, passive: true });

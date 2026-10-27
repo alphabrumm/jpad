@@ -189,6 +189,7 @@ export class App {
         if (/[?&]debug\b/.test(location.search)) import("./DebugLog.js").then(m => m.startDebugLog(this.editor.view));
 
         this.keyBar = new KeyBar(this.root, this.editor, this.bridge, (html) => this.showInfo(html));
+        this.keyBar.onKeyboardOpen = () => this.maybeRotateHint();
         const blockContext: BlockContext = {
             view: this.editor.view,
             dialogs: this.dialogs,
@@ -704,8 +705,10 @@ export class App {
             fold.style.left = ((bulb.right + skin.left) / 2 - fold.offsetWidth / 2 - br.left) + "px";
         };
         if (this.root.dataset.layout != "split" || getComputedStyle(g).display == "none") { centerFold(); return; }
-        const code = this.root.querySelector(".jp-pane-code")!.getBoundingClientRect();
-        const side = this.root.querySelector(".jp-pane-side")!.getBoundingClientRect();
+        const codeEl = this.root.querySelector(".jp-pane-code"), sideEl = this.root.querySelector(".jp-pane-side");
+        if (!codeEl || !sideEl) { centerFold(); return; }   // Oberfläche noch nicht fertig aufgebaut
+        const code = codeEl.getBoundingClientRect();
+        const side = sideEl.getBoundingClientRect();
         if (code.width == 0 || side.width == 0) { centerFold(); return; }
         const tools = this.el.editTools.getBoundingClientRect();
         const barRect = bar.getBoundingClientRect();
@@ -1145,6 +1148,27 @@ export class App {
      * Menü „Demo-Projekt laden“: öffnet den Demo-Lernpfad (public/demo) wie einen Lernpfad-Link.
      * Gibt es das Demo-Projekt schon, öffnet sich dieses mit dem bisherigen Stand.
      */
+    /**
+     * iPad im Querformat und die Bildschirmtastatur geht auf (also keine echte Tastatur): einmal pro Sitzung
+     * empfehlen, JPad hochkant zu benutzen. „Nicht mehr zeigen“ gilt 4 Wochen.
+     */
+    private maybeRotateHint() {
+        const html = document.documentElement;
+        if (!html.classList.contains("touch") || html.classList.contains("phone")) return;
+        try {
+            if (sessionStorage.getItem("jpad.rotateHintShown")) return;
+            if (Date.now() < parseInt(localStorage.getItem("jpad.rotateHintOff") || "0")) return;
+        } catch (e) { }
+        // kurz warten, bis die Tastatur steht; dann noch einmal prüfen
+        setTimeout(async () => {
+            if (window.innerWidth <= window.innerHeight || !html.classList.contains("keyboard-open")) return;
+            if (document.querySelector(".jp-sheet-layer")) return;
+            try { sessionStorage.setItem("jpad.rotateHintShown", "1"); } catch (e) { }
+            const off = await this.dialogs.rotateHint();
+            if (off) try { localStorage.setItem("jpad.rotateHintOff", String(Date.now() + 28 * 24 * 3600 * 1000)); } catch (e) { }
+        }, 600);
+    }
+
     get isTeacher(): boolean {
         try { return sessionStorage.getItem("jpad.lehrkraft") == "1"; } catch (e) { return false; }
     }
