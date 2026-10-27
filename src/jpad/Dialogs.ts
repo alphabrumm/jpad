@@ -960,26 +960,32 @@ export class Dialogs {
      */
     rotateHint(): Promise<boolean> {
         return this.open(`
-            <h2 class="jp-sheet-title">Dreh dein iPad hochkant</h2>
-            <div class="jp-rotate-anim" aria-hidden="true">
-                <svg viewBox="0 0 220 170">
-                    <g class="jp-rot-arrows" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M58 30 A 70 70 0 0 1 172 52"/><path d="M164 34 L174 54 L152 58"/>
-                        <path d="M162 140 A 70 70 0 0 1 48 118"/><path d="M56 136 L46 116 L68 112"/>
-                    </g>
-                    <g class="jp-rot-device">
-                        <rect x="58" y="57" width="104" height="72" rx="9" class="jp-rot-body"/>
-                        <rect x="66" y="64" width="88" height="58" rx="3" class="jp-rot-screen"/>
-                        <circle cx="160" cy="93" r="1.6" class="jp-rot-cam"/>
-                        <g class="jp-rot-kb"><rect x="70" y="98" width="80" height="20" rx="2"/><path d="M74 103h72M74 108h72M74 113h72" /></g>
-                    </g>
-                </svg>
+            <div class="jp-rotate-row">
+                <div class="jp-rotate-anim" aria-hidden="true">
+                    <svg viewBox="30 18 160 150">
+                        <g class="jp-rot-arrows" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M169.8 65.1 A 66 66 0 0 0 50.2 65.1"/><path d="M60.8 57.7 L50.2 65.1 L49.1 52.2"/>
+                            <path d="M50.2 120.9 A 66 66 0 0 0 169.8 120.9"/><path d="M159.2 128.3 L169.8 120.9 L170.9 133.8"/>
+                        </g>
+                        <g class="jp-rot-device">
+                            <rect x="66" y="63" width="88" height="60" rx="8" class="jp-rot-body"/>
+                            <rect x="73" y="69" width="74" height="48" rx="3" class="jp-rot-screen"/>
+                            <g class="jp-rot-kb"><rect x="76" y="97" width="68" height="17" rx="2"/><path d="M80 102h60M80 106.5h60M80 111h60"/></g>
+                        </g>
+                    </svg>
+                </div>
+                <div class="jp-rotate-text">
+                    <h2 class="jp-sheet-title">Dreh dein iPad hochkant</h2>
+                    <p class="jp-sheet-text">Ohne echte Tastatur verdeckt die Bildschirmtastatur im Querformat fast den ganzen Code.
+                        Benutze JPad <b>hochkant</b>, wenn du ohne Tastatur arbeitest, und <b>quer</b> mit einer echten Tastatur.</p>
+                </div>
             </div>
-            <p class="jp-sheet-text">Ohne echte Tastatur verdeckt die Bildschirmtastatur im Querformat fast den ganzen Code.
-                Benutze JPad deshalb <b>hochkant</b>, wenn du ohne Tastatur arbeitest, und <b>quer</b> mit einer echten Tastatur.</p>
-            <label class="jp-check-row"><input type="checkbox" data-dontshow><span>Diesen Hinweis nicht mehr zeigen</span></label>
-            <div class="jp-sheet-buttons"><button type="button" class="jp-btn jp-btn-primary" data-ok>Verstanden</button></div>`, (sheet, close) => {
+            <div class="jp-rotate-foot">
+                <label class="jp-check-row"><input type="checkbox" data-dontshow><span>Diesen Hinweis nicht mehr zeigen</span></label>
+                <button type="button" class="jp-btn jp-btn-primary" data-ok>Verstanden</button>
+            </div>`, (sheet, close) => {
             sheet.classList.add("is-rotate");
+            sheet.parentElement!.classList.add("is-rotate-layer");
             const cb = sheet.querySelector<HTMLInputElement>("[data-dontshow]")!;
             sheet.querySelector("[data-ok]")!.addEventListener("click", () => close(cb.checked));
         }).then(v => v === true);

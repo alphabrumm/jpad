@@ -3283,9 +3283,17 @@ html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: jp-surround
 /* ===================================================================================
    Hinweis: ohne echte Tastatur hochkant (iPad im Querformat, Bildschirmtastatur offen)
    =================================================================================== */
-.jp-sheet.is-rotate { max-width: 460px; }
-.jp-rotate-anim { display: flex; justify-content: center; margin: 4px 0 10px; color: var(--accent); }
-.jp-rotate-anim svg { width: 200px; height: auto; overflow: visible; }
+/* Breit und flach, ganz oben – sonst verdeckt die Bildschirmtastatur den Hinweis */
+.jp-sheet-layer.is-rotate-layer { flex-direction: column; justify-content: flex-start; align-items: flex-start; padding: max(10px, env(safe-area-inset-top)) 0 0 !important; }
+.jp-sheet-layer.is-rotate-layer::before { display: none !important; }
+.jp-sheet.is-rotate { width: min(720px, calc(100vw - 24px)) !important; max-width: none !important; border-radius: var(--radius-l); padding: 14px 18px 12px; }
+.jp-rotate-row { display: flex; gap: 16px; align-items: center; }
+.jp-rotate-anim { flex: none; width: 96px; color: var(--accent); }
+.jp-rotate-anim svg { width: 96px; height: auto; display: block; overflow: visible; }
+.jp-rotate-text .jp-sheet-title { margin: 0 0 4px; }
+.jp-rotate-text .jp-sheet-text { margin: 0; }
+.jp-rotate-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.jp-rotate-foot .jp-check-row { margin: 0; }
 .jp-rot-body { fill: var(--surface-2); stroke: var(--ink); stroke-width: 4; }
 .jp-rot-screen { fill: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
 .jp-rot-cam { fill: var(--ink); }

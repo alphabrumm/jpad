@@ -247,3 +247,4 @@ GNU GPL v3, wie die Online-IDE.
 - Hinweis „Dreh dein iPad hochkant“: Geht auf dem iPad im Querformat die Bildschirmtastatur auf (also keine echte Tastatur), erscheint
   einmal pro Sitzung ein Hinweis mit Animation (iPad dreht sich ins Hochformat). „Diesen Hinweis nicht mehr zeigen“ gilt 4 Wochen
   (localStorage `jpad.rotateHintOff`). Außerdem: alignBulb bricht nicht mehr ab, solange die Oberfläche noch nicht aufgebaut ist.
+- Hinweis „hochkant“: breit und flach ganz oben (über der Bildschirmtastatur), kleinere Animation, Pfeilspitzen korrekt auf dem Drehkreis.
