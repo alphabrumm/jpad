@@ -243,3 +243,4 @@ GNU GPL v3, wie die Online-IDE.
   den Modus und umschließt sie: Vorlagen direkt (Cursor in der ersten Eingabestelle, z. B. Bedingung), if/Methode/Klasse über ihren Dialog
   mit Vorschau samt markierter Zeilen. Methode: Zeilen wandern in den Rumpf der neuen Methode (Ort wie sonst); Klasse: „hier einfügen“
   umschließt an Ort und Stelle, „als Datei“ verschiebt die Zeilen in die neue Datei. Esc auf der Tastatur beendet den Markier-Modus.
+- Untere Ansichts-Leiste (Hochformat iPad/iPhone): Reihenfolge Lernpfad, Code, Ausgabe, …

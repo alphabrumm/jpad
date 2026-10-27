@@ -364,8 +364,8 @@ export class App {
         </main>
 
         <nav class="jp-bottomnav" aria-label="Ansicht">
-            <button data-view="code" data-tip="Code: der Editor mit deinen Dateien">${icon("code")}<span>Code</span></button>
             <button data-view="lernpfad" class="jp-lernpfad-tab" data-tip="Lernpfad: Anleitung und Aufgaben zu diesem Projekt">${icon("lernpfad")}<span>Lernpfad</span></button>
+            <button data-view="code" data-tip="Code: der Editor mit deinen Dateien">${icon("code")}<span>Code</span></button>
             <button data-view="output" data-tip="Ausgabe: Text und Grafik deines Programms">${icon("output")}<span>Ausgabe</span></button>
             <button data-view="variables" data-tip="Variablen und ihre Werte beim schrittweisen Ausführen">${icon("variables")}<span>Variablen</span></button>
             <button data-view="diagram" data-tip="Diagramm: Klassen und Objekte">${icon("diagram")}<span>Diagramm</span></button>
