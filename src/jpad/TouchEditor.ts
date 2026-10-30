@@ -2,7 +2,7 @@ import * as monaco from 'monaco-editor';
 import { EditorState, Extension, StateEffect, StateField, Compartment, Transaction, EditorSelection, Prec, ChangeDesc, countColumn, findColumn } from "@codemirror/state";
 import {
     EditorView, keymap, lineNumbers, highlightActiveLineGutter, Decoration, DecorationSet,
-    highlightSpecialChars, dropCursor, gutter, GutterMarker, layer, RectangleMarker
+    highlightSpecialChars, dropCursor, gutter, GutterMarker, layer, RectangleMarker, tooltips
 } from "@codemirror/view";
 import { RangeSet } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, toggleComment, insertBlankLine, deleteLine, insertNewlineAndIndent } from "@codemirror/commands";
@@ -443,6 +443,7 @@ export class TouchEditor {
             markLinesField,
             markRectField,
             markRectLayer,
+            tooltips({ tooltipSpace: () => this.tooltipSpace() }),
             autocompletion({
                 override: [bridge.completionSource],
                 activateOnTyping: true,
@@ -483,6 +484,9 @@ export class TouchEditor {
                 if (update.docChanged || update.selectionSet) {
                     listener.onCursorActivity?.(update.state.selection.main.head);
                 }
+                // Vorschlagsliste neu geöffnet oder geändert: lesbar halten (nicht unter der Tastatur)
+                if (completionStatus(update.state) == "active" &&
+                    (completionStatus(update.startState) != "active" || update.docChanged)) this.keepCompletionVisible();
                 // Markier-Modus: gemerkte Zeilen wandern bei Änderungen mit
                 if (this.marking && update.docChanged) this.mapMark(update.changes);
                 if (update.focusChanged) {
@@ -656,6 +660,73 @@ export class TouchEditor {
     }
 
     /**
+     * Der tatsächlich sichtbare Teil des Editors in Bildschirmkoordinaten: geschnitten mit der
+     * sichtbaren Fläche über der Bildschirmtastatur, mit umgebenden Bereichen (overflow) und der Hilfsleiste.
+     */
+    visibleArea(): { top: number, bottom: number, left: number, right: number } {
+        const sc = this.view.scrollDOM;
+        const r = sc.getBoundingClientRect();
+        const vv = window.visualViewport;
+        let top = Math.max(r.top, vv ? vv.offsetTop : 0);
+        let bottom = Math.min(r.bottom, vv ? vv.offsetTop + vv.height : window.innerHeight);
+        let left = r.left, right = r.right;
+        // Umgebende Bereiche schneiden den Editor ab (z. B. ist er unten um die Höhe der Dateireiter
+        // abgeschnitten, wenn er so hoch ist wie der ganze Code-Bereich) – nur der Schnitt ist sichtbar
+        for (let el = sc.parentElement; el && el != document.body; el = el.parentElement) {
+            const ov = getComputedStyle(el);
+            if (ov.overflowY == "visible" && ov.overflowX == "visible") continue;
+            const pr = el.getBoundingClientRect();
+            bottom = Math.min(bottom, pr.bottom);
+            left = Math.max(left, pr.left);
+            right = Math.min(right, pr.right);
+        }
+        // Die Hilfsleiste über der Tastatur kann den unteren Rand des Editors verdecken
+        const bar = document.querySelector<HTMLElement>(".jp-keybar");
+        if (bar && bar.offsetParent) {
+            const b = bar.getBoundingClientRect();
+            if (b.height > 0 && b.top < bottom && b.bottom > top) bottom = Math.min(bottom, b.top);
+        }
+        return { top, bottom, left, right };
+    }
+
+    /** Platz für Vorschlagsliste und Tooltips: waagrecht nur der sichtbare Editor, senkrecht das ganze Fenster
+     *  (die Liste soll unter dem Cursor bleiben – verdeckt sie die Tastatur, scrollt keepCompletionVisible den Code) */
+    private tooltipSpace = () => {
+        const a = this.visibleArea();
+        this.view.dom.style.setProperty("--jp-tip-w", Math.max(200, a.right - a.left - 8) + "px");
+        return { top: 0, bottom: 100000, left: a.left + 4, right: a.right - 4 };
+    };
+
+    private completionScrollPending = false;
+
+    /** Rutscht die Vorschlagsliste mindestens zur Hälfte unter die Tastatur (bzw. aus dem sichtbaren Editor),
+     *  wird der Code so weit nach oben geschoben, dass sie lesbar ist – die Cursorzeile bleibt dabei sichtbar. */
+    private keepCompletionVisible() {
+        if (this.completionScrollPending) return;
+        this.completionScrollPending = true;
+        // erst nachdem CodeMirror die Liste gezeichnet und platziert hat
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            this.completionScrollPending = false;
+            const view = this.view;
+            if (completionStatus(view.state) != "active") return;
+            const tip = view.dom.querySelector<HTMLElement>(".cm-tooltip-autocomplete");
+            if (!tip) return;
+            const t = tip.getBoundingClientRect();
+            const area = this.visibleArea();
+            const hidden = t.bottom - area.bottom;
+            if (t.height <= 0 || hidden < t.height / 2) return;
+            const block = view.lineBlockAt(view.state.selection.main.head);
+            const lineTop = view.documentTop + block.top;
+            // höchstens so weit, dass die Cursorzeile noch knapp unter dem oberen Rand steht
+            const shift = Math.min(hidden + 8, lineTop - (area.top + 8));
+            if (shift > 4) {
+                view.scrollDOM.scrollTop += shift;
+                view.requestMeasure();
+            }
+        }));
+    }
+
+    /**
      * Cursor in den sichtbaren Bereich holen (nach einer Änderung der verfügbaren Höhe).
      * Bewusst NICHT über EditorView.scrollIntoView: das scrollt auch alle umgebenden Bereiche
      * (selbst mit overflow: hidden) und schiebt so z. B. die Dateireiter nach oben weg.
@@ -665,24 +736,7 @@ export class TouchEditor {
         const view = this.view, sc = view.scrollDOM;
         const head = view.state.selection.main.head;
         const block = view.lineBlockAt(head);              // funktioniert auch für Zeilen außerhalb des gezeichneten Bereichs
-        const r = sc.getBoundingClientRect();
-        const vv = window.visualViewport;
-        let visTop = Math.max(r.top, vv ? vv.offsetTop : 0);
-        let visBottom = Math.min(r.bottom, vv ? vv.offsetTop + vv.height : window.innerHeight);
-        // Umgebende Bereiche schneiden den Editor ab (z. B. ist er unten um die Höhe der Dateireiter
-        // abgeschnitten, wenn er so hoch ist wie der ganze Code-Bereich) – nur der Schnitt ist sichtbar
-        for (let el = sc.parentElement; el && el != document.body; el = el.parentElement) {
-            const ov = getComputedStyle(el);
-            if (ov.overflowY == "visible" && ov.overflowX == "visible") continue;
-            const pr = el.getBoundingClientRect();
-            visBottom = Math.min(visBottom, pr.bottom);
-        }
-        // Die Hilfsleiste über der Tastatur kann den unteren Rand des Editors verdecken
-        const bar = document.querySelector<HTMLElement>(".jp-keybar");
-        if (bar && bar.offsetParent) {
-            const b = bar.getBoundingClientRect();
-            if (b.height > 0 && b.top < visBottom && b.bottom > visTop) visBottom = Math.min(visBottom, b.top);
-        }
+        const { top: visTop, bottom: visBottom } = this.visibleArea();
         const lineTop = view.documentTop + block.top;       // Bildschirmkoordinaten
         const lineBottom = view.documentTop + block.bottom;
         const visible = visBottom - visTop;

@@ -126,7 +126,7 @@ export class JavaCompletionItemProvider extends BaseMonacoProvider implements mo
             symbolTable = module.findSymbolTableAtPosition(position);
             classContext = symbolTable == null ? undefined : symbolTable.classContext;
             return this.getCompletionItemsAfterDot(dotMatch, position, module, main,
-                identifierAndBracketAfterCursor, classContext, leftBracketAlreadyThere);
+                identifierAndBracketAfterCursor, classContext, leftBracketAlreadyThere, symbolTable, textUntilPosition);
         }
 
         // inside variable or class identifier?
@@ -557,11 +557,22 @@ export class JavaCompletionItemProvider extends BaseMonacoProvider implements mo
     getCompletionItemsAfterDot(dotMatch: RegExpMatchArray, position: monaco.Position, module: JavaCompiledModule,
         main: IMain,
         identifierAndBracketAfterCursor: string, classContext: NonPrimitiveType | StaticNonPrimitiveType | undefined,
-        leftBracketAlreadyThere: boolean): monaco.languages.ProviderResult<monaco.languages.CompletionList> {
+        leftBracketAlreadyThere: boolean, symbolTable?: JavaSymbolTable, textUntilPosition?: string): monaco.languages.ProviderResult<monaco.languages.CompletionList> {
 
         let textAfterDot = dotMatch[2];
         let dotColumn = position.column - textAfterDot.length - 1;
-        let type = module.getTypeAtPosition(position.lineNumber, dotColumn);
+        let type: any = module.getTypeAtPosition(position.lineNumber, dotColumn);
+        // JPad: Beim Tippen ist die Anweisung noch unvollständig („vogel.ro“). Folgt in der nächsten Zeile weiterer
+        // Code, liest der Parser beides zusammen („vogel.ro i = i + 1;“) und kennt den Typ von „vogel“ nicht.
+        // Dann den Typ einer einfachen Variablen vor dem Punkt direkt in der Symboltabelle nachschlagen.
+        if (type == null && symbolTable && textUntilPosition) {
+            let m = textUntilPosition.match(/(?:^|[^\wöäüÖÄÜß.])([A-Za-z_öäüÖÄÜß][\wöäüÖÄÜß]*)\.[\wöäüÖÄÜß]*$/);
+            if (m) {
+                let found = m[1] == "this" ? undefined : symbolTable.findSymbol(m[1]);
+                if (found?.symbol?.type) type = found.symbol.type;
+                else if (m[1] == "this" && classContext) type = classContext;
+            }
+        }
         let rangeToReplace: monaco.IRange =
         {
             startLineNumber: position.lineNumber, startColumn: position.column - textAfterDot.length,

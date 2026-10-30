@@ -556,6 +556,13 @@ html.phone .jp-topbar .jp-bulb, html.phone .jp-bulbgroup .jp-topbar-sep { displa
     min-width: 240px;
 }
 
+/* Nie breiter als der sichtbare Editor (sonst wird die Liste links abgeschnitten, z. B. hochkant mit aufgeklappten Bausteinen) */
+.cm-tooltip.cm-tooltip-autocomplete { max-width: var(--jp-tip-w, 96vw); }
+.cm-tooltip-autocomplete > ul { max-width: 100%; }
+.cm-tooltip-autocomplete > ul > li { overflow: hidden; }
+.cm-tooltip-autocomplete .cm-completionLabel { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-tooltip-autocomplete .cm-completionDetail { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 12px; }
+
 .cm-tooltip-autocomplete > ul > li {
     padding: 8px 12px !important;
     line-height: 1.3;
