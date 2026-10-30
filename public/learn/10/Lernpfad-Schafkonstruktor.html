@@ -834,11 +834,13 @@ figcaption { font-size: calc((15px) * var(--fz, 1)); color: var(--ink-2); margin
         o: [["JPad meldet einen Fehler.", false, "Leider nicht. Der Code ist gültiges Java, deshalb ist der Fehler so tückisch."], ["Die Farbe wird richtig gesetzt.", false, "Beide farbe meinen den Parameter. Das Attribut bekommt nichts ab."], ["Das Attribut bleibt null.", true, "Richtig. Der Parameter verdeckt das Attribut. Mit this.farbe = farbe; klappt es."]] }
     ]
   };
+  // Antworten bei jedem Laden mischen (die richtige steht im Quelltext oft vorn)
+  const mix = n => { const a = [...Array(n).keys()]; for (let k = n - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
   document.querySelectorAll("[data-quiz]").forEach(box => {
     QUIZ[box.dataset.quiz].forEach((item, qi) => {
       const q = document.createElement("div");
       q.className = "q";
-      q.innerHTML = `<div class="q-text">${item.q}</div><div class="q-opts">${item.o.map((o, i) => `<button class="q-opt" type="button" data-i="${i}">${o[0]}</button>`).join("")}</div><div class="q-fb" aria-live="polite"></div>`;
+      q.innerHTML = `<div class="q-text">${item.q}</div><div class="q-opts">${mix(item.o.length).map(i => `<button class="q-opt" type="button" data-i="${i}">${item.o[i][0]}</button>`).join("")}</div><div class="q-fb" aria-live="polite"></div>`;
       const fb = q.querySelector(".q-fb");
       q.querySelector(".q-opts").addEventListener("click", e => {
         const b = e.target.closest(".q-opt"); if (!b) return;

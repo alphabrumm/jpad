@@ -788,11 +788,13 @@ body, code, pre, kbd, button, input { font-variant-ligatures: none; font-feature
   applyZoom();
 
   // ---------- Quiz ----------
+  // Antworten bei jedem Laden mischen (die richtige steht im Quelltext oft vorn)
+  const mix = n => { const a = [...Array(n).keys()]; for (let k = n - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
   document.querySelectorAll("[data-quiz]").forEach(box => {
     QUIZ[box.dataset.quiz].forEach(item => {
       const q = document.createElement("div");
       q.className = "q";
-      q.innerHTML = `<div class="q-text">${item.q}</div><div class="q-opts">${item.o.map((o, i) => `<button class="q-opt" type="button" data-i="${i}">${o[0]}</button>`).join("")}</div><div class="q-fb" aria-live="polite"></div>`;
+      q.innerHTML = `<div class="q-text">${item.q}</div><div class="q-opts">${mix(item.o.length).map(i => `<button class="q-opt" type="button" data-i="${i}">${item.o[i][0]}</button>`).join("")}</div><div class="q-fb" aria-live="polite"></div>`;
       const fb = q.querySelector(".q-fb");
       q.querySelector(".q-opts").addEventListener("click", e => {
         const b = e.target.closest(".q-opt"); if (!b) return;
