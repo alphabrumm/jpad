@@ -248,3 +248,9 @@ GNU GPL v3, wie die Online-IDE.
   einmal pro Sitzung ein Hinweis mit Animation (iPad dreht sich ins Hochformat). „Diesen Hinweis nicht mehr zeigen“ gilt 4 Wochen
   (localStorage `jpad.rotateHintOff`). Außerdem: alignBulb bricht nicht mehr ab, solange die Oberfläche noch nicht aufgebaut ist.
 - Hinweis „hochkant“: breit und flach ganz oben (über der Bildschirmtastatur), kleinere Animation, Pfeilspitzen korrekt auf dem Drehkreis.
+- **while-Baustein mit Dialog** „Wiederholung bauen“: Bedingung (mit Code Completion) oder Häkchen „Zählende Wiederholung“ mit „Wie oft?“
+  und Name der Zählvariable → `Integer i = 0; while (i < n) { … i = i + 1; }`. Vorschau; umschließt markierte bzw. ausgewählte Zeilen.
+- Konstruktor-Baustein „für Attributbelegung“ in Unterklassen (`class A extends B`): Parameter des größten Konstruktors der Oberklasse
+  plus eigene Attribute, `super(…)` als erste Zeile, dann `this.x = x` (auch für Bibliotheksklassen wie Rectangle).
+- Neuer Lernpfad learn/10: **Vererbung** („Dackel, Bernhardiner und ein Raumschiff“): extends, Überschreiben, super, Vogel-Rückblick,
+  Raumschiff (act) und Knopf (Rectangle, onMouseDown), Abgabe, versteckte Bonus-Station. Vogelflug Station 5 nutzt den neuen while-Dialog.

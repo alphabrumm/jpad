@@ -24,6 +24,7 @@ export type ActionItem = { id: string, label: string, icon: string, danger?: boo
  * Ersetzen prompt()/confirm(), die auf dem iPad unpassend aussehen.
  */
 /** Konstruktor eines Datentyps für den Variablen-Dialog */
+export type WhileResult = { counting: boolean, cond: string, times: string, varName: string };
 export type VarCtor = { params: { type: string, name: string }[] };
 export type VariableResult = {
     type: string, name: string, array: boolean, count?: number,
@@ -483,6 +484,80 @@ export class Dialogs {
      * JPadBlox: Baustein „if“. Bedingung, beliebig viele else-if-Zweige (hinzufügen/entfernen) und ein
      * else-Zweig; rechts daneben die Vorschau des Codes. Leere Bedingungen werden zu Eingabestellen im Editor.
      */
+    /**
+     * Baustein while: Bedingung eingeben (mit Code Completion) – oder „zählende Wiederholung“ ankreuzen,
+     * Anzahl und Namen der Zählvariable eintragen. Vorschau wie beim if-Dialog.
+     */
+    whileLoop(o: {
+        build: (r: WhileResult) => string,
+        field?: (host: HTMLElement, f: { placeholder: string, onChange: () => void, onEnter: () => void }) => FieldHandle
+    }): Promise<WhileResult | null> {
+        return this.open(`
+            <div class="jp-if-split">
+            <div class="jp-if-input">
+            <h2 class="jp-sheet-title">Wiederholung bauen</h2>
+            <form class="jp-form">
+                <label class="jp-array-check jp-while-count"><input type="checkbox" data-counting><span>Zählende Wiederholung</span></label>
+                <div class="jp-while-cond">
+                    <label class="jp-field jp-if-row">
+                        <span><code>while</code> – Bedingung:</span>
+                        ${o.field ? `<div class="jp-condhost" data-cond data-placeholder="z. B. x < 760"></div>`
+                            : `<input type="text" data-cond placeholder="z. B. x < 760" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="off" enterkeyhint="done">`}
+                    </label>
+                    <p class="jp-if-hint">Leer gelassen: Die Bedingung trägst du später im Code ein.</p>
+                </div>
+                <div class="jp-while-counter" hidden>
+                    <label class="jp-field"><span>Wie oft?</span>
+                        <input type="text" data-times inputmode="numeric" pattern="[0-9]*" value="10" autocomplete="off" enterkeyhint="done"></label>
+                    <label class="jp-field"><span>Name der Zählvariable</span>
+                        <input type="text" data-var value="i" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="off" enterkeyhint="done"></label>
+                    <p class="jp-if-hint">JPad legt die Zählvariable über der Schleife an und zählt sie am Ende des Rumpfs um 1 hoch.</p>
+                </div>
+                <p class="jp-field-error" aria-live="polite"></p>
+                <div class="jp-sheet-buttons">
+                    <button type="button" class="jp-btn" data-cancel>Abbrechen</button>
+                    <button type="submit" class="jp-btn jp-btn-primary">Einfügen</button>
+                </div>
+            </form>
+            </div>
+            <div class="jp-preview jp-if-preview" aria-live="polite"><span class="jp-preview-label">Vorschau</span><code data-preview></code></div>
+            </div>`, (sheet, close) => {
+            sheet.classList.add("is-if");
+            const q = <T extends HTMLElement>(s: string) => sheet.querySelector<T>(s)!;
+            const counting = q<HTMLInputElement>("[data-counting]"), times = q<HTMLInputElement>("[data-times]"), varIn = q<HTMLInputElement>("[data-var]");
+            const preview = q<HTMLElement>("[data-preview]"), error = q<HTMLElement>(".jp-field-error"), form = q<HTMLFormElement>("form");
+            const condEl = q<HTMLElement>("[data-cond]");
+            const cond: FieldHandle = o.field
+                ? o.field(condEl, { placeholder: condEl.dataset.placeholder ?? "", onChange: () => refresh(), onEnter: () => form.requestSubmit() })
+                : { el: condEl, value: () => (<HTMLInputElement>condEl).value, focus: () => condEl.focus(), destroy: () => { } };
+            const current = (): WhileResult => ({
+                counting: counting.checked, cond: cond.value(),
+                times: times.value.trim(), varName: varIn.value.trim() || "i",
+            });
+            const refresh = () => { error.textContent = ""; preview.innerHTML = highlightJava(o.build(current())); };
+            const applyMode = () => {
+                q<HTMLElement>(".jp-while-cond").hidden = counting.checked;
+                q<HTMLElement>(".jp-while-counter").hidden = !counting.checked;
+                refresh();
+                setTimeout(() => counting.checked ? (times.focus(), times.select()) : cond.focus(), 30);
+            };
+            counting.addEventListener("change", applyMode);
+            sheet.addEventListener("input", refresh);
+            refresh();
+            setTimeout(() => cond.focus(), 60);
+            form.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const r = current();
+                if (r.counting) {
+                    if (!/^\d+$/.test(r.times)) { error.textContent = "Bei „Wie oft?“ bitte eine ganze Zahl eintragen, z. B. 10."; times.focus(); return; }
+                    if (!/^[A-Za-z_ÄÖÜäöüß][\wÄÖÜäöüß]*$/.test(r.varName)) { error.textContent = "Der Name der Zählvariable darf nur Buchstaben, Ziffern und _ enthalten (keine Ziffer am Anfang)."; varIn.focus(); return; }
+                }
+                close(r);
+            });
+            return () => cond.destroy();
+        });
+    }
+
     ifStatement(o: {
         build: (r: IfResult) => string,
         /** Eingabefeld mit Code Completion (sonst einfaches Textfeld) */

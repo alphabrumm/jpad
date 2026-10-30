@@ -4,7 +4,7 @@ import { snippet } from "@codemirror/autocomplete";
 import { insertNewlineAndIndent } from "@codemirror/commands";
 import { getIndentation, indentString, indentUnit } from "@codemirror/language";
 import apiText from "./api/online-ide-api.txt?raw";
-import type { Dialogs, VarCtor, VariableResult } from "./Dialogs.js";
+import type { Dialogs, VarCtor, VariableResult, WhileResult } from "./Dialogs.js";
 import type { FieldHandle } from "./ConditionField.js";
 
 /**
@@ -37,7 +37,7 @@ export type BlockGroup = "klasse" | "ablauf" | "daten";
  *  comment  Kommentar einfügen bzw. Zeilen aus- und einkommentieren
  */
 export type BlockKind = "line" | "inline" | "else" | "text" | "visibility" | "attribut" | "variable" | "array" | "new" | "comment"
-    | "constructor" | "accessors" | "method" | "class" | "if";
+    | "constructor" | "accessors" | "method" | "class" | "if" | "while";
 
 export type Block = {
     label: string;
@@ -88,8 +88,8 @@ export const BLOCKS: Block[] = [
         tip: "Weitere Bedingung nach einem if-Block: else if (Bedingung) { … }" },
     { group: "ablauf", label: "else", help: "b-else", more: true, kind: "else", tpl: "else {\n\t§\n}",
         tip: "Sonst-Teil nach einem if-Block: else { … }" },
-    { group: "ablauf", label: "while", help: "b-while", kind: "line", tpl: "while (${Bedingung}) {\n\t§\n}",
-        tip: "Wiederholung mit Bedingung: while (Bedingung) { … }" },
+    { group: "ablauf", label: "while", help: "b-while", kind: "while", tpl: "while (${Bedingung}) {\n\t§\n}",
+        tip: "Wiederholung: im Dialog eine Bedingung eintragen oder „zählende Wiederholung“ ankreuzen und sagen, wie oft" },
     { group: "ablauf", label: "for", help: "b-for", more: true, kind: "line", tpl: "for (Integer ${i} = 0; ${i} < ${10}; ${i}++) {\n\t§\n}",
         tip: "Zählschleife: for (Integer i = 0; i < 10; i++) { … }" },
     { group: "ablauf", label: "for-each", help: "b-foreach", more: true, kind: "line", tpl: "for (${String} ${element} : ${liste}) {\n\t§\n}",
@@ -220,6 +220,9 @@ export async function insertBlock(ctx: BlockContext, block: Block) {
             break;
         case "if":
             done = await insertIf(ctx, block, surround);
+            break;
+        case "while":
+            done = await insertWhile(ctx, block, surround);
             break;
         case "constructor": {
             const choice = await ctx.dialogs.constructorChoice();
@@ -634,6 +637,23 @@ async function insertConstructor(ctx: BlockContext, block: Block, mode: "empty" 
         fallback(); return;
     }
 
+    // Unterklasse (class Dackel extends Hund): Parameter für die Oberklasse zuerst, dann die eigenen Attribute.
+    // super(…) baut den Teil der Oberklasse, die eigenen Attribute setzt this.… – die Online-IDE schlägt hier nichts vor.
+    const ext = new RegExp(String.raw`\bclass\s+` + name + String.raw`\s+extends\s+([A-Za-z_À-ɏ][\wÀ-ɏ]*)`).exec(code);
+    if (ext && now) {
+        const sup = ctx.constructors(ext[1]).slice().sort((a, b) => b.params.length - a.params.length)[0];
+        const supParams = sup?.params ?? [];
+        const own = attributesOf(code, now).filter(a => !supParams.some(p => p.name == a.name));
+        const params = [...supParams, ...own.map(a => ({ type: a.type, name: a.name }))];
+        const lines = [`${name}(${params.map(p => `${p.type} ${p.name}`).join(", ")}) {`];
+        if (supParams.length) lines.push(`super(${supParams.map(p => p.name).join(", ")});`);
+        for (const a of own) lines.push(`this.${a.name} = ${a.name};`);
+        if (lines.length == 1) lines.push("");
+        lines.push("}");
+        insertLines(view, lines, Math.max(0, lines.length - 2));
+        return;
+    }
+
     // Der Vorschlag braucht den übersetzten Stand: einige Male kurz warten und erneut fragen
     let text: string | null = null;
     const docBefore = view.state.doc.toString();
@@ -714,6 +734,38 @@ function ifText(r: IfResult, snippetMode: boolean): string {
     for (const c of r.elseIfs) t += ` else if (${cond(c)}) {\n\t${body()}\n}`;
     if (r.hasElse) t += ` else {\n\t${body()}\n}`;
     return t;
+}
+
+/** Code der Wiederholung. Vorschau: leere Bedingung als „…“; snippetMode: Eingabestellen für den Editor */
+function whileText(r: WhileResult, snippetMode: boolean, body: string[] | null): string {
+    const inner = body ? body.map(l => l == "" ? "" : "\t" + (snippetMode ? escapeForSnippet(l) : l)).join("\n")
+        : (snippetMode ? "\t§" : "\t…");
+    if (r.counting) {
+        const v = r.varName, n = r.times || "…";
+        return `Integer ${v} = 0;\nwhile (${v} < ${n}) {\n${inner}\n\t${v} = ${v} + 1;\n}`;
+    }
+    const c = r.cond.trim() != "" ? (snippetMode ? escapeForSnippet(r.cond.trim()) : r.cond.trim()) : (snippetMode ? "${1:Bedingung}" : "…");
+    return `while (${c}) {\n${inner}\n}`;
+}
+
+async function insertWhile(ctx: BlockContext, block: Block, surround = false): Promise<boolean> {
+    // Bei einer echten Auswahl (oder im Markier-Modus) umschließt die Schleife die ausgewählten Zeilen
+    const sel = ctx.view.state.selection.main;
+    const body = surround || !sel.empty ? selectedLines(ctx.view).lines : null;
+    const r = await ctx.dialogs.whileLoop({
+        build: (x) => whileText(x, false, body).replace(/\t/g, "   "),
+        field: ctx.conditionField,
+    });
+    if (!r) return false;
+    if (body) {
+        // Umschließen über den gemeinsamen Weg (§ wird durch die ausgewählten Zeilen ersetzt)
+        const tpl = whileText(r, true, null);
+        insertTemplate(ctx.view, { ...block, kind: "line", tpl });
+        return true;
+    }
+    const tpl = whileText(r, true, null);
+    insertTemplate(ctx.view, { ...block, kind: "line", tpl, bodyField: r.counting || r.cond.trim() != "" ? "${1}" : "${2}" });
+    return true;
 }
 
 async function insertIf(ctx: BlockContext, block: Block, surround = false): Promise<boolean> {
