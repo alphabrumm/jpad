@@ -259,3 +259,4 @@ GNU GPL v3, wie die Online-IDE.
 - Kartenformen in Lernpfaden: Klassenkarten spitze Ecken, Objektkarten stark abgerundet (Bello, Schaf, Vererbung).
 - Umschließen (Klasse, Methode, if …) auch mit gewöhnlicher Maus-/Touch-Auswahl; public? wirkt auf alle ausgewählten Deklarationszeilen (Klassen nie private), auch im Markier-Modus sichtbar.
 - Vorschlagsliste: nie breiter als der sichtbare Editor (hochkant mit Bausteinleiste), klappt nicht nach oben, Code scrollt hoch, wenn sie zur Hälfte verdeckt wäre; Vorschläge nach dem Punkt auch, wenn die Anweisung mitten im Code noch unvollständig ist (vogel.ro… in while).
+- Touch: Beschreibung eines Vorschlags erst nach langem Drücken (450 ms) auf den Eintrag; kurzes Tippen übernimmt, Weitertippen schließt sie.

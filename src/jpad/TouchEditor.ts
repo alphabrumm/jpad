@@ -8,7 +8,7 @@ import { RangeSet } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab, undo, redo, undoDepth, redoDepth, toggleComment, insertBlankLine, deleteLine, insertNewlineAndIndent } from "@codemirror/commands";
 import { java } from "@codemirror/lang-java";
 import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching, indentUnit, getIndentation, indentString } from "@codemirror/language";
-import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, startCompletion, acceptCompletion, completionStatus, hasNextSnippetField, nextSnippetField, clearSnippet } from "@codemirror/autocomplete";
+import { autocompletion, moveCompletionSelection, closeBrackets, closeBracketsKeymap, completionKeymap, startCompletion, acceptCompletion, completionStatus, hasNextSnippetField, nextSnippetField, clearSnippet } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, Diagnostic } from "@codemirror/lint";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { tags as t } from "@lezer/highlight";
@@ -484,6 +484,9 @@ export class TouchEditor {
                 if (update.docChanged || update.selectionSet) {
                     listener.onCursorActivity?.(update.state.selection.main.head);
                 }
+                // Beschreibung (nach langem Drücken) wieder schließen, sobald weitergetippt wird oder die Liste zugeht
+                if (document.documentElement.classList.contains("jp-ac-info") &&
+                    (update.docChanged || completionStatus(update.state) != "active")) document.documentElement.classList.remove("jp-ac-info");
                 // Vorschlagsliste neu geöffnet oder geändert: lesbar halten (nicht unter der Tastatur)
                 if (completionStatus(update.state) == "active" &&
                     (completionStatus(update.startState) != "active" || update.docChanged)) this.keepCompletionVisible();
@@ -502,6 +505,61 @@ export class TouchEditor {
             state: EditorState.create({ doc: "", extensions: this.extensions }),
             parent: parent
         });
+        this.setupCompletionLongPress();
+    }
+
+    /**
+     * Touch: Die Beschreibung zu einem Vorschlag verdeckt sonst die übrigen Einträge der Liste.
+     * Sie erscheint deshalb erst, wenn man den Finger lange auf einen Vorschlag legt (Klasse „jp-ac-info“).
+     * Kurzes Antippen übernimmt den Vorschlag wie bisher.
+     */
+    private setupCompletionLongPress() {
+        const root = document.documentElement, dom = this.view.dom;
+        let timer = 0, startX = 0, startY = 0, fired = false, suppressUntil = 0;
+        const cancel = () => { if (timer) { clearTimeout(timer); timer = 0; } };
+        dom.addEventListener("touchstart", e => {
+            fired = false;
+            const li = (e.target as HTMLElement).closest?.(".cm-tooltip-autocomplete li") as HTMLElement | null;
+            if (!li || e.touches.length != 1 || li.querySelector(".cm-completionIcon-jp-toggle")) return;
+            startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+            cancel();
+            timer = window.setTimeout(() => {
+                timer = 0; fired = true;
+                this.selectCompletionOption(li);
+                root.classList.add("jp-ac-info");
+            }, 450);
+        }, { passive: true, capture: true });
+        dom.addEventListener("touchmove", e => {
+            const t = e.touches[0];
+            if (timer && t && Math.hypot(t.clientX - startX, t.clientY - startY) > 10) cancel();
+        }, { passive: true, capture: true });
+        dom.addEventListener("touchend", e => {
+            cancel();
+            // Nach langem Drücken den Vorschlag NICHT übernehmen (keine nachgeschobenen Mausereignisse)
+            if (fired) { fired = false; suppressUntil = Date.now() + 700; if (e.cancelable) e.preventDefault(); }
+        }, { capture: true });
+        dom.addEventListener("touchcancel", () => { cancel(); fired = false; }, { capture: true });
+        for (const type of ["mousedown", "click"]) {
+            dom.addEventListener(type, e => {
+                if (Date.now() < suppressUntil && (e.target as HTMLElement).closest?.(".cm-tooltip-autocomplete")) {
+                    e.preventDefault(); e.stopPropagation();
+                }
+            }, { capture: true });
+        }
+    }
+
+    /** Vorschlag (Listeneintrag) auswählen, ohne ihn zu übernehmen */
+    private selectCompletionOption(li: HTMLElement) {
+        const items = Array.from(li.parentElement?.children ?? []);
+        const target = items.indexOf(li);
+        let current = items.findIndex(x => x.hasAttribute("aria-selected"));
+        if (target < 0 || current < 0) return;
+        for (let i = 0; i < 400 && current != target; i++) {
+            moveCompletionSelection(target > current)(this.view);
+            const now = Array.from(li.parentElement?.children ?? []).findIndex(x => x.hasAttribute("aria-selected"));
+            if (now == current) break;
+            current = now;
+        }
     }
 
     private fontSizeTheme(size: number): Extension {

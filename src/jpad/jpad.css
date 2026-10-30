@@ -581,6 +581,10 @@ li[aria-selected] .cm-completionDetail { color: inherit; opacity: 0.85; }
 .cm-completionIcon { opacity: 0.8; width: 1.1em !important; padding-right: 0 !important; }
 .cm-completionMatchedText { text-decoration: none !important; font-weight: 700; }
 
+/* Touch: Beschreibung erst nach langem Drücken auf einen Vorschlag (verdeckt sonst die Liste) */
+html.touch:not(.jp-ac-info) .cm-tooltip.cm-completionInfo { display: none !important; }
+html.touch .cm-tooltip-autocomplete li { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
 .cm-tooltip.cm-completionInfo {
     padding: 10px 12px !important;
     max-width: min(420px, 60vw);
