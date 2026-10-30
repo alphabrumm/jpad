@@ -257,3 +257,4 @@ GNU GPL v3, wie die Online-IDE.
 - Lernpfade (Bello, Schafkonstruktor, Vogelflug, Vererbung): Quiz-Antworten werden bei jedem Laden gemischt (vorher stand die richtige meist vorn).
 - Lehrkraft-Liste: zusammengehörige Dateien (JPad-X.json, Lernpfad-X.html/.zip) als Gruppe mit Titel und Abstand; Label „Projekt“ (hervorgehoben) bzw. „Lernpfad ohne Code“.
 - Kartenformen in Lernpfaden: Klassenkarten spitze Ecken, Objektkarten stark abgerundet (Bello, Schaf, Vererbung).
+- Umschließen (Klasse, Methode, if …) auch mit gewöhnlicher Maus-/Touch-Auswahl; public? wirkt auf alle ausgewählten Deklarationszeilen (Klassen nie private), auch im Markier-Modus sichtbar.

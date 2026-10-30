@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
 import { snippet } from "@codemirror/autocomplete";
 import { insertNewlineAndIndent } from "@codemirror/commands";
-import { getIndentation, indentString, indentUnit } from "@codemirror/language";
+import { getIndentation, indentString, indentUnit, syntaxTree } from "@codemirror/language";
 import apiText from "./api/online-ide-api.txt?raw";
 import type { Dialogs, VarCtor, VariableResult, WhileResult } from "./Dialogs.js";
 import type { FieldHandle } from "./ConditionField.js";
@@ -77,7 +77,7 @@ export const BLOCKS: Block[] = [
     { group: "klasse", label: "super", help: "b-super", more: true, kind: "line", tpl: "super(${});",
         tip: "Konstruktor der Oberklasse aufrufen: super(…); – muss die erste Anweisung im Konstruktor sein" },
     { group: "klasse", label: "public?", help: "b-public", kind: "visibility", tpl: "public",
-        tip: "Sichtbarkeit: 1× tippen setzt public, 2× tippen private, 3× tippen entfernt die Sichtbarkeit wieder. Steht in der Zeile schon eine, wird sie ersetzt" },
+        tip: "Sichtbarkeit: 1× tippen setzt public, 2× tippen private, 3× tippen entfernt die Sichtbarkeit wieder. Steht in der Zeile schon eine, wird sie ersetzt. Mit mehreren ausgewählten Zeilen (Maus oder Markier-Modus) gilt das für alle Klassen, Attribute und Methoden darin" },
     { group: "klasse", label: "//", help: "b-kommentar", kind: "comment", tpl: "// ${Kommentar}",
         tip: "Kommentar: In einer leeren Zeile wird ein Kommentar begonnen. Steht Code in der Zeile (oder sind Zeilen markiert), wird er mit // auskommentiert; ist schon eine davon auskommentiert, werden alle wieder einkommentiert" },
 
@@ -165,6 +165,8 @@ export type BlockContext = {
 
 /** Bausteine, die im Markier-Modus sichtbar bleiben: Sie umschließen die markierten Zeilen */
 export const SURROUND_LABELS = new Set(["Klasse", "Methode", "if", "while", "for", "for-each", "else", "do – while"]);
+/** Bausteine, die im Markier-Modus außerdem sichtbar bleiben: Sie wirken auf alle markierten Zeilen */
+export const MARK_LABELS = new Set([...SURROUND_LABELS, "public?"]);
 
 /** Die ausgewählten ganzen Zeilen: Text relativ zur Einrückung der ersten Zeile, Bereich im Dokument */
 function selectedLines(view: EditorView) {
@@ -198,7 +200,9 @@ export async function insertBlock(ctx: BlockContext, block: Block) {
     // Hatte der Editor beim Antippen den Fokus (Cursor gesetzt)? Wichtig für den Ort einer neuen Klasse
     const hadFocus = view.hasFocus;
     // Markier-Modus: Der Baustein umschließt die markierten Zeilen („umschließen mit …“)
-    const surround = SURROUND_LABELS.has(block.label) && !!ctx.surroundFromMark?.();
+    // Ebenso bei einer gewöhnlichen Auswahl (z. B. mit der Maus am PC/Mac)
+    const markLines = MARK_LABELS.has(block.label) && !!ctx.surroundFromMark?.();
+    const surround = SURROUND_LABELS.has(block.label) && (markLines || !view.state.selection.main.empty);
     let done = true;
     switch (block.kind) {
         case "attribut":
@@ -345,17 +349,76 @@ function insertText(view: EditorView, text: string) {
 let visTap = { time: 0, line: -1, count: 0 };
 const VIS_TAP_MS = 2000;
 
-/** „public?“: 1× tippen public, 2× private, 3× Sichtbarkeit entfernen (danach wieder von vorn) */
+/** „public?“: 1× tippen public, 2× private, 3× Sichtbarkeit entfernen (danach wieder von vorn).
+ *  Mit Auswahl (Maus oder Markier-Modus): für alle ausgewählten Deklarationszeilen (Klassen, Attribute, Methoden, Konstruktoren) */
 function cycleVisibility(ctx: BlockContext) {
     const view = ctx.view;
-    const lineNo = view.state.doc.lineAt(view.state.selection.main.head).number;
+    const sel = view.state.selection.main;
+    const multi = !sel.empty;
+    const range = multi ? selectedLines(view) : null;
+    const key = range ? -(range.first.number * 100000 + range.last.number) : view.state.doc.lineAt(sel.head).number;
     const now = Date.now();
-    const again = now - visTap.time < VIS_TAP_MS && visTap.line == lineNo;
-    visTap = { time: now, line: lineNo, count: again ? visTap.count % 3 + 1 : 1 };
-    if (visTap.count == 1) setVisibility(view, "public");
-    else if (visTap.count == 2) setVisibility(view, "private");
+    const again = now - visTap.time < VIS_TAP_MS && visTap.line == key;
+    visTap = { time: now, line: key, count: again ? visTap.count % 3 + 1 : 1 };
+    const kw = visTap.count == 1 ? "public" : visTap.count == 2 ? "private" : null;
+    if (range) {
+        const n = setVisibilityLines(view, range.first.number, range.last.number, kw);
+        ctx.hint(n == 0 ? "In der Auswahl steht keine Klasse, kein Attribut und keine Methode."
+            : `${n} ${n == 1 ? "Zeile" : "Zeilen"}: ${kw ?? "ohne Sichtbarkeit"}  ·  nochmal tippen: ${kw == "public" ? "private" : kw == "private" ? "–" : "public"}`);
+        return;
+    }
+    if (kw) setVisibility(view, kw);
     else removeVisibility(view);
     ctx.hint("2× tippen: private  ·  3× tippen: –");
+}
+
+const DECL_NODES = new Set(["ClassDeclaration", "InterfaceDeclaration", "EnumDeclaration", "FieldDeclaration",
+    "MethodDeclaration", "ConstructorDeclaration"]);
+const BODY_NODES = new Set(["Block", "ConstructorBody", "LambdaExpression"]);
+
+/** Art der Deklaration (Klasse, Attribut, Methode, Konstruktor), die in dieser Zeile beginnt – nicht in einem Methodenrumpf */
+function declarationAt(view: EditorView, line: { from: number, text: string }): string | null {
+    const indent = /^\s*/.exec(line.text)![0].length;
+    const text = line.text.slice(indent);
+    if (text == "" || /^(\/\/|\/\*|\*|[{}])/.test(text)) return null;
+    const pos = line.from + indent;
+    for (let node: any = syntaxTree(view.state).resolveInner(pos, 1); node; node = node.parent) {
+        if (BODY_NODES.has(node.name) && node.from < pos) return null;
+        if (DECL_NODES.has(node.name)) return node.from == pos ? node.name : null;
+    }
+    return null;
+}
+
+/** Sichtbarkeit (oder keine, kw == null) für alle Deklarationszeilen first…last setzen; liefert deren Anzahl */
+function setVisibilityLines(view: EditorView, first: number, last: number, kw: string | null): number {
+    const doc = view.state.doc;
+    const changes: { from: number, to: number, insert: string }[] = [];
+    let count = 0;
+    for (let n = first; n <= last; n++) {
+        const line = doc.line(n);
+        const decl = declarationAt(view, line);
+        if (!decl) continue;
+        count++;
+        // Klassen können nicht private sein: dort heißt der zweite Schritt „ohne Sichtbarkeit“
+        const k = kw == "private" && /^(Class|Interface|Enum)Declaration$/.test(decl) ? null : kw;
+        const code = codeOnly(line.text);
+        const m = /\b(public|private|protected)\b[ \t]*/.exec(code);
+        if (m) {
+            const from = line.from + m.index;
+            if (k == null) changes.push({ from, to: from + m[0].length, insert: "" });
+            else if (m[1] != k) changes.push({ from, to: from + m[1].length, insert: k });
+        } else if (k) {
+            const from = line.from + /^\s*/.exec(line.text)![0].length;
+            changes.push({ from, to: from, insert: k + " " });
+        }
+    }
+    if (changes.length) {
+        // Auswahl über die ganzen Zeilen behalten, damit erneutes Tippen wieder alle trifft
+        view.dispatch({ changes, userEvent: "input" });
+        const d = view.state.doc;
+        view.dispatch({ selection: EditorSelection.range(d.line(last).to, d.line(first).from) });
+    }
+    return count;
 }
 
 /** Vorhandenes public/private/protected (samt Leerzeichen dahinter) aus der Cursorzeile entfernen */
@@ -1174,7 +1237,7 @@ function chipHtml(b: Block, i: number): string {
     // Das Kurzzeichen als Text steht in data-ico (per CSS angezeigt), damit der Text des Knopfs der Name bleibt
     const ico = !ic ? "" : ic.svg ? `<span class="jp-block-ico" aria-hidden="true">${ic.svg}</span>`
         : `<span class="jp-block-ico" aria-hidden="true" data-ico="${ic.text!.replace(/"/g, "&quot;")}"></span>`;
-    return `<button class="jp-block" data-block="${i}" data-group="${b.group}"${SURROUND_LABELS.has(b.label) ? " data-surround" : ""}${b.help ? ` data-help="${b.help}"` : ""} aria-label="${b.label.replace(/"/g, "&quot;")}" data-tip="${blockTip(b).replace(/"/g, "&quot;")}">${ico}<span class="jp-block-label"${PANEL_ALT_LABEL[b.label] ? ` data-alt="${PANEL_ALT_LABEL[b.label]}"` : ""}>${b.label.replace(/</g, "&lt;")}</span></button>`;
+    return `<button class="jp-block" data-block="${i}" data-group="${b.group}"${MARK_LABELS.has(b.label) ? " data-surround" : ""}${b.help ? ` data-help="${b.help}"` : ""} aria-label="${b.label.replace(/"/g, "&quot;")}" data-tip="${blockTip(b).replace(/"/g, "&quot;")}">${ico}<span class="jp-block-label"${PANEL_ALT_LABEL[b.label] ? ` data-alt="${PANEL_ALT_LABEL[b.label]}"` : ""}>${b.label.replace(/</g, "&lt;")}</span></button>`;
 }
 
 /** Senkrechte Bausteinleiste (linke Spalte im Querformat), nach Gruppen geordnet; ganz unten „Mehr…“ (eingeklappt) */
