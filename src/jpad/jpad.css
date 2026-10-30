@@ -3309,3 +3309,14 @@ html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: jp-surround
 @media (prefers-reduced-motion: reduce) { .jp-rot-device { animation: none; transform: rotate(-90deg); } .jp-rot-arrows, .jp-rot-kb { animation: none; } }
 .jp-check-row { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; font-size: 15px; cursor: pointer; }
 .jp-check-row input { width: 20px; height: 20px; accent-color: var(--accent); }
+/* Lehrkraft-Liste: zusammengehörige Dateien als Gruppe, Projekt deutlich von „Lernpfad ohne Code“ unterschieden */
+.jp-teach-group { margin: 0 0 22px; padding: 10px 10px 2px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--ink-2) 7%, transparent); }
+.jp-teach-group:last-child { margin-bottom: 8px; }
+.jp-teach-gtitle { margin: 2px 4px 10px; font-size: 16px; font-weight: 700; color: var(--ink); }
+.jp-teach-group .jp-teach-row { margin-bottom: 8px; }
+.jp-teach-label { justify-self: start; display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.jp-teach-row[data-kind="Projekt"] .jp-teach-label { background: var(--accent); color: var(--accent-ink, #fff); }
+.jp-teach-row:not([data-kind="Projekt"]) .jp-teach-label { background: color-mix(in srgb, var(--ink-2) 18%, transparent); color: var(--ink-2); }
+.jp-teach-row:not([data-kind="Projekt"]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.jp-teach-row:not([data-kind="Projekt"]) .jp-teach-code { background: color-mix(in srgb, var(--marker) 45%, var(--surface)); font-size: 18px; }
+.jp-teach-title { gap: 3px; }

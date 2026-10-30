@@ -652,15 +652,20 @@ export class Dialogs {
     teacherList(entries: { path: string, folder: string, code: string | null, title: string, kind: string }[], base: string): Promise<string | null> {
         const folders = [...new Set(entries.map(e => e.folder))].sort((a, b) => (/^\d+$/.test(b) ? 1 : 0) - (/^\d+$/.test(a) ? 1 : 0) || a.localeCompare(b));
         const link = (e: { path: string }) => base + "?lernpfad=" + "learn/" + e.path;
-        const rows = folders.map(f => {
-            const items = entries.filter(e => e.folder == f)
-                // Projekte (mit Code) zuerst, dann Lernpfade, dann ZIPs; innerhalb nach Titel
-                .sort((a, b) => ["Projekt", "Lernpfad", "ZIP"].indexOf(a.kind) - ["Projekt", "Lernpfad", "ZIP"].indexOf(b.kind) || a.title.localeCompare(b.title));
-            return `<h3 class="jp-teach-folder">${/^\d+$/.test(f) ? "Klasse " + escapeHtml(f) : escapeHtml(f[0].toUpperCase() + f.slice(1))}</h3>
-                ${items.map(e => `<div class="jp-teach-row">
+        const KIND_ORDER = ["Projekt", "Lernpfad", "ZIP"];
+        const KIND_LABEL: Record<string, string> = { Projekt: "Projekt", Lernpfad: "Lernpfad ohne Code", ZIP: "Lernpfad als ZIP (ohne Code)" };
+        const KIND_TIP: Record<string, string> = {
+            Projekt: "Projekt mit Startcode und eingebettetem Lernpfad – diesen Link bzw. JCode bekommen die Schüler",
+            Lernpfad: "Nur die Lernpfad-Seite: Das Projekt startet ohne Code",
+            ZIP: "Lernpfad mit Bildern als ZIP: Das Projekt startet ohne Code",
+        };
+        // Zusammengehörige Dateien (JPad-X.json, Lernpfad-X.html, Lernpfad-X.zip) bilden eine Gruppe
+        const baseName = (path: string) => path.split("/").pop()!.replace(/^(JPad|Lernpfad)-/i, "").replace(/\.(json|html|zip)$/i, "");
+        const row = (e: typeof entries[number]) => `<div class="jp-teach-row" data-kind="${escapeHtml(e.kind)}">
                     <div class="jp-teach-head">
-                        <div class="jp-teach-title"><b>${escapeHtml(e.title || e.path.split("/").pop()!)}</b>
-                            <span class="jp-teach-kind">${escapeHtml(e.kind)} · ${escapeHtml(e.path.split("/").pop()!)}</span></div>
+                        <div class="jp-teach-title">
+                            <span class="jp-teach-label" data-tip="${escapeHtml(KIND_TIP[e.kind] ?? "")}">${escapeHtml(KIND_LABEL[e.kind] ?? e.kind)}</span>
+                            <span class="jp-teach-kind">${escapeHtml(e.path.split("/").pop()!)}</span></div>
                         ${e.code ? `<div class="jp-teach-code" title="JCode">${e.code}</div>` : ""}
                     </div>
                     <div class="jp-teach-actions">
@@ -668,11 +673,26 @@ export class Dialogs {
                         <button type="button" class="jp-btn" data-copy="${escapeHtml(link(e))}">${icon("copy")}<span>Kopieren</span></button>
                         <button type="button" class="jp-btn jp-btn-primary" data-open="${escapeHtml(e.path)}">Öffnen</button>
                     </div>
-                </div>`).join("")}`;
+                </div>`;
+        const rows = folders.map(f => {
+            const inFolder = entries.filter(e => e.folder == f);
+            const groups = new Map<string, typeof entries>();
+            for (const e of inFolder) {
+                const k = baseName(e.path);
+                if (!groups.has(k)) groups.set(k, []);
+                groups.get(k)!.push(e);
+            }
+            const html = [...groups.entries()].map(([k, items]) => {
+                items.sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
+                // Überschrift: Titel des Lernpfads (aussagekräftiger), sonst der Projektname
+                const title = items.find(e => e.kind == "Lernpfad" && e.title)?.title || items.find(e => e.title)?.title || k;
+                return `<section class="jp-teach-group"><h4 class="jp-teach-gtitle">${escapeHtml(title)}</h4>${items.map(row).join("")}</section>`;
+            }).join("");
+            return `<h3 class="jp-teach-folder">${/^\d+$/.test(f) ? "Klasse " + escapeHtml(f) : escapeHtml(f[0].toUpperCase() + f.slice(1))}</h3>${html}`;
         }).join("");
         return this.open(`
             <h2 class="jp-sheet-title">Lernpfade und Projekte</h2>
-            <p class="jp-sheet-text">Lehrkraft-Modus: Mit „Öffnen“ lädst du eine frische Kopie. Der JCode steht dann oben neben dem Projektnamen, damit die Klasse ihn sehen kann.</p>
+            <p class="jp-sheet-text">Lehrkraft-Modus: Für die Klasse ist das <b>Projekt</b> gedacht (Startcode und Lernpfad). „Öffnen“ lädt eine frische Kopie, der JCode steht dann oben neben dem Projektnamen.</p>
             <div class="jp-sheet-content jp-teach-list">${rows || "<p>Noch keine Lernpfade auf dem Server.</p>"}</div>
             <div class="jp-sheet-buttons"><button type="button" class="jp-btn" data-cancel>Schließen</button></div>`, (sheet, close) => {
             sheet.classList.add("is-teacher");

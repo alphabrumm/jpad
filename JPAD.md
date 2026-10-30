@@ -255,3 +255,4 @@ GNU GPL v3, wie die Online-IDE.
 - Neuer Lernpfad learn/10: **Vererbung** („Dackel, Bernhardiner und ein Raumschiff“): extends, Überschreiben, super, Vogel-Rückblick,
   Raumschiff (act) und Knopf (Rectangle, onMouseDown), Abgabe, versteckte Bonus-Station. Vogelflug Station 5 nutzt den neuen while-Dialog.
 - Lernpfade (Bello, Schafkonstruktor, Vogelflug, Vererbung): Quiz-Antworten werden bei jedem Laden gemischt (vorher stand die richtige meist vorn).
+- Lehrkraft-Liste: zusammengehörige Dateien (JPad-X.json, Lernpfad-X.html/.zip) als Gruppe mit Titel und Abstand; Label „Projekt“ (hervorgehoben) bzw. „Lernpfad ohne Code“.
