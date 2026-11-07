@@ -1672,10 +1672,27 @@ export class App {
         if (this.lpBridgeReady) return;
         this.lpBridgeReady = true;
         window.addEventListener("message", ev => this.onLernpfadMessage(ev));
-        // Nach jedem Programmlauf die Ausgabe an den Lernpfad melden (Mitschrift der Online-IDE: registerOnRunExitListener)
-        this.main.registerOnRunExitListener(st => {
-            const output = String(st?.output ?? "");
-            this.postToLernpfad({ type: "jpad-executed", output: output.slice(0, 20000), error: !!st?.exception, files: this.lpFiles() });
+        // Nach jedem Programmlauf die Ausgabe an den Lernpfad melden. Mitgeschrieben wird selbst (print umhüllt):
+        // registerOnRunExitListener der Online-IDE geht in JPad nicht (Testläufer fehlt → Fehler beim Programmende).
+        const interp: any = this.main.getInterpreter();
+        let capturing = false, buf = "";
+        const pm: any = interp.printManager;
+        if (pm && !pm.__jpadLernpfad) {
+            const orig = pm.print.bind(pm);
+            pm.print = (text: string | undefined, nl: boolean, color: number | undefined) => {
+                if (capturing) { buf += (text ?? "") + (nl ? "\n" : ""); if (buf.length > 50000) buf = buf.slice(-50000); }
+                orig(text, nl, color);
+            };
+            pm.__jpadLernpfad = true;
+        }
+        interp.eventManager.on("stateChanged", (old: SchedulerState, state: SchedulerState) => {
+            if (state == SchedulerState.running && old != SchedulerState.paused) { capturing = true; buf = ""; }
+            if ((state == SchedulerState.stopped || state == SchedulerState.error) && capturing) {
+                capturing = false;
+                // Zeile „Ausführungszeit: …“ der Online-IDE gehört nicht zur Ausgabe des Programms
+                const output = buf.replace(/\n*(Ausführungszeit|Execution time):[^\n]*\n?$/, "").replace(/\n+$/, "\n");
+                this.postToLernpfad({ type: "jpad-executed", output: output.slice(0, 20000), error: state == SchedulerState.error, files: this.lpFiles() });
+            }
         });
     }
 

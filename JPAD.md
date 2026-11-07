@@ -35,7 +35,7 @@ Bedienung und Gestaltung.
   „In dieses JPad-Projekt übernehmen“ macht daraus den Lernpfad des Projekts; im normalen Browser Selbstkontrolle.
 - **Lernpfad-Schnittstelle** (postMessage an `parent`): `{type:"jpad", action:"hello"}` → `jpad-hello`;
   `action:"code", code` (in JPad übernehmen); `action:"script", req` → `{type:"jpad-script", req, name, text, files}`.
-  Nach jedem Programmlauf meldet JPad `{type:"jpad-executed", output, error, files}` (über `registerOnRunExitListener`).
+  Nach jedem Programmlauf meldet JPad `{type:"jpad-executed", output, error, files}` (Ausgabe selbst mitgeschrieben).
   Nur für den Editor: `pf-editor-ready` (→ `pf-open` mit dem PathFinder-Dokument), `pf-editor-close`, `jpad-set-lernpfad`.
 - **Lernpfad per Link**: `jpad.pandapy.de/?lernpfad=<Adresse>` (HTML, ZIP oder Projektdatei) bzw. `?projekt=<Adresse>`
   (Projektdatei, auch kombinierbar). Die Adresse darf relativ zu JPad sein (z. B. `?lernpfad=lernpfade/schaf.json`).
