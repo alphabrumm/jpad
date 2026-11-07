@@ -26,6 +26,17 @@ Bedienung und Gestaltung.
   Projektdatei mit (Feld `lernpfadHtml`, die Online-IDE ignoriert es) und erscheint als erster Reiter der
   Seitenleiste. Projekte ohne Lernpfad zeigen den Reiter nicht. Der Lernpfad läuft in einem abgeschotteten iframe
   (kein Zugriff auf JPad); sein localStorage (z. B. Fortschritt) wird per postMessage je Projekt in JPad gespeichert.
+- **Lernpfad-Editor PathFinder** (Menü → „Lernpfad-Editor (PathFinder)“): öffnet `editor/index.html?in=jpad` im
+  Lernpfad-Bereich. PathFinder liegt als Git-Submodul unter `vendor/pathfinder` (`git submodule update --init`; neuer
+  Stand: `git -C vendor/pathfinder pull origin main` und committen); `postbuild.mjs` kopiert ihn nach `dist-jpad/pathfinder/`.
+  JPad-Baustein in `public/editor/jpad-plugin.js`: **Programmier-Aufgabe** (nach jedem Programmlauf prüft der Lernpfad
+  die Ausgabe – „enthält“ oder „genau gleich“ – und optional Pflicht-Code wie `for`); Code-Bausteine bekommen
+  „In JPad übernehmen“ (Klasse als eigene Datei, gleichnamige Datei auf Nachfrage ersetzen). Export „für JPad“ bzw.
+  „In dieses JPad-Projekt übernehmen“ macht daraus den Lernpfad des Projekts; im normalen Browser Selbstkontrolle.
+- **Lernpfad-Schnittstelle** (postMessage an `parent`): `{type:"jpad", action:"hello"}` → `jpad-hello`;
+  `action:"code", code` (in JPad übernehmen); `action:"script", req` → `{type:"jpad-script", req, name, text, files}`.
+  Nach jedem Programmlauf meldet JPad `{type:"jpad-executed", output, error, files}` (über `registerOnRunExitListener`).
+  Nur für den Editor: `pf-editor-ready` (→ `pf-open` mit dem PathFinder-Dokument), `pf-editor-close`, `jpad-set-lernpfad`.
 - **Lernpfad per Link**: `jpad.pandapy.de/?lernpfad=<Adresse>` (HTML, ZIP oder Projektdatei) bzw. `?projekt=<Adresse>`
   (Projektdatei, auch kombinierbar). Die Adresse darf relativ zu JPad sein (z. B. `?lernpfad=lernpfade/schaf.json`).
   Beim ersten Aufruf entsteht ein neues Projekt; derselbe Link öffnet später dieses Projekt mit dem Stand des Schülers.

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lernpfad-Editor (PathFinder) · JPad</title>
+<link rel="icon" href="../jpad-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../pathfinder/core/pathfinder.css">
+</head>
+<body>
+<div class="app" id="app">
+  <section class="lpwrap" aria-label="Lernpfad">
+    <div class="ed-bar" id="edBar">
+      <span class="pf-brand"><img src="../pathfinder/icon.svg" alt=""><span>PathFinder</span></span>
+      <span class="ed-seg" id="modeSeg"><button data-mode="edit" aria-pressed="true">✎ Bearbeiten</button><button data-mode="preview">▶ Vorschau</button></span>
+      <button class="ed-btn" id="bUndo" title="Rückgängig (⌘Z)" aria-label="Rückgängig">↶</button>
+      <button class="ed-btn" id="bRedo" title="Wiederholen (⇧⌘Z)" aria-label="Wiederholen">↷</button>
+      <button class="ed-btn" id="bSingle" title="Nur aktuelle Station zeigen" aria-pressed="false">◧<span class="t"> Station</span></button>
+      <button class="ed-btn" id="bDesign" title="Design">🎨<span class="t"> Design</span></button>
+      <span class="sp"></span>
+      <span class="ed-saved" id="saved"></span>
+      <button class="ed-btn" id="bOpen" title="Lernpfad öffnen oder neu anlegen">📂<span class="t"> Öffnen</span></button>
+      <button class="ed-btn" id="bMore" title="Mehr">⋯</button>
+    </div>
+    <div class="lp-scroll" id="scroll"><div class="lp" id="lp"></div></div>
+  </section>
+</div>
+<script type="module">
+import { startPathFinder } from '../pathfinder/core/pathfinder.js';
+import { jpadPlugin, createBridgeHost, makeBridge } from './jpad-plugin.js';
+
+// In JPad geöffnet (Menü → Lernpfad-Editor)? Dann spricht der Editor direkt mit JPad.
+const inJPad = new URLSearchParams(location.search).get('in') === 'jpad' && parent !== window;
+
+const sample = () => ({
+  v: 2, id: 'jpad-entwurf', form: 'lernpfad', design: { pal: 2, font: 'pixel', shape: 'eckig', hero: 'logo', heroImg: '' },
+  kicker: 'JPad · Lernpfad', title: 'Bello bellt', subtitle: 'Methoden aufrufen und Ausgaben prüfen', goals: [], rank: '', anim: {}, typeLines: [],
+  stations: [
+    { title: 'Die Klasse Hund', sub: 'Code übernehmen', blocks: [
+      { type: 'text', html: 'Übernimm die Klasse <b>Hund</b> in JPad. Sie kann schon bellen.' },
+      { type: 'code', lang: 'java', code: 'public class Hund {\n    public void bellen() {\n        println("Wuff!");\n    }\n}' } ] },
+    { title: 'Bello bellt dreimal', sub: 'Programmier-Aufgabe', blocks: [
+      { type: 'jtask', id: 'j1', title: 'Dreimal Wuff', html: 'Erzeuge einen Hund <code>bello</code> und lass ihn <b>dreimal</b> bellen. Starte dann das Programm.', start: 'Hund bello = new Hund();\n', expect: 'Wuff!\nWuff!\nWuff!', compare: 'gleich', needs: ['bello.bellen()'], xp: 20, tips: ['Eine Methode rufst du mit <code>bello.bellen();</code> auf.'], solution: '', img: '' },
+      { type: 'lock', after: 'j1' },
+      { type: 'info', kind: 'merke', title: 'Merke', html: 'Methoden rufst du mit <code>objekt.methode()</code> auf.' } ] },
+  ].map((s, i) => ({ id: 's' + i, check: false, ...s, blocks: s.blocks.map((b, j) => ({ id: b.id || `b${i}${j}`, ...b })) })),
+  cert: { on: true, need: 'alle', pct: 80, text: 'hat den Lernpfad erfolgreich bearbeitet.', show: { zeit: true, tipps: true, quiz: true, xp: true } },
+});
+
+let host = {};
+let bridge = null;
+if (inJPad) {
+  bridge = makeBridge();
+  host = createBridgeHost(bridge, { editor: true });
+  addEventListener('message', e => { if (e.source === parent && e.data?.type === 'pf-open' && e.data.doc) { api.openDoc(e.data.doc); api.toast('Lernpfad aus dem Projekt geöffnet'); } });
+  const bar = document.getElementById('edBar'), x = document.createElement('button');
+  x.className = 'ed-btn'; x.title = 'Editor schließen (zurück zum Lernpfad des Projekts)'; x.setAttribute('aria-label', 'Editor schließen'); x.textContent = '✕';
+  x.onclick = () => bridge.post({ type: 'pf-editor-close' }); bar.appendChild(x);
+}
+const api = startPathFinder({ appName: 'JPad', logo: '../jpad-icon.svg', storage: 'jpad-pathfinder', plugins: [jpadPlugin], host, sample });
+if (bridge) setTimeout(() => bridge.post({ type: 'pf-editor-ready' }), 50);
+</script>
+</body></html>

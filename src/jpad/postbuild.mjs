@@ -1,8 +1,14 @@
 // Nach dem Build: Startseite, Server-Einstellungen, Aufräumen
-import { copyFileSync, writeFileSync, rmSync, readdirSync, existsSync, readFileSync } from "fs";
+import { copyFileSync, writeFileSync, rmSync, readdirSync, existsSync, readFileSync, cpSync } from "fs";
 
 const out = "dist-jpad";
 copyFileSync(`${out}/jpad.html`, `${out}/index.html`);
+
+// Lernpfad-Editor PathFinder (Git-Submodul vendor/pathfinder): Kern, Schriften und Symbol nach dist-jpad/pathfinder/
+if (existsSync("vendor/pathfinder/core")) {
+    for (const d of ["core", "fonts"]) cpSync(`vendor/pathfinder/${d}`, `${out}/pathfinder/${d}`, { recursive: true });
+    copyFileSync("vendor/pathfinder/icon.svg", `${out}/pathfinder/icon.svg`);
+} else console.warn("Hinweis: vendor/pathfinder fehlt (git submodule update --init) – Lernpfad-Editor wird nicht gebaut.");
 
 // Für Apache-Webspaces (die meisten einfachen Hoster)
 writeFileSync(`${out}/.htaccess`, `# JPad: Einstellungen für Apache-Webserver

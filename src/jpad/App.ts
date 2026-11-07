@@ -49,6 +49,13 @@ function loadSkinFonts() {
 }
 
 /** JPadBlox: Themes für die Auswahl im Menü (bg/fg: Farben des kleinen Vorschau-Felds) */
+/** PathFinder-Dokument aus einem eingebetteten Lernpfad (zum Weiterbearbeiten im Editor) */
+function pathfinderDoc(html: string | null | undefined): any {
+    const s = String(html || "");
+    const m = s.match(/<script type="application\/json" id="pf-doc-app">([\s\S]*?)<\/script>/) || s.match(/<script type="application\/json" id="pf-doc">([\s\S]*?)<\/script>/);
+    try { return m ? JSON.parse(m[1]) : null; } catch (e) { return null; }
+}
+
 const SKINS: { id: string, label: string, icon: string, tip: string, bg: string, fg: string }[] = [
     { id: "default", label: "Standard", icon: "palette", tip: "Standard-Aussehen von JPad", bg: "#F3F5F9", fg: "#3157F5" },
     { id: "hund", label: "Hund", icon: "dog", tip: "Hund: Farben des Demo-Lernpfads „Bello lernt Java“", bg: "#e5f3ea", fg: "#1f8a6a" },
@@ -101,6 +108,9 @@ export class App {
     lernpfadHtml: string | null = null;
     private applyLayout: () => void = () => { };
     private lernpfadMessageHandler: ((ev: MessageEvent) => void) | null = null;
+    /** Lernpfad-Editor PathFinder im Lernpfad-Bereich geöffnet? */
+    private editorOpen = false;
+    private lpBridgeReady = false;
     errorCount = 0;
     modifiedSaveTimer: any;
 
@@ -391,6 +401,7 @@ export class App {
                     <button data-ref="teacherBtn" hidden data-tip="Lehrkraft: alle Lernpfade und Projekte mit JCode, Link und Öffnen-Knopf">${icon("jcode")}<span>Lehrkraft: alle Lernpfade</span></button>
                     <button data-ref="demoBtn" data-tip="Neues Projekt mit einer frischen Kopie des Demo-Lernpfads: JPad kennenlernen und die Klasse Hund bauen">${icon("lernpfad")}<span>Demo laden</span></button>
                     <button data-ref="lernpfadAddBtn" data-tip="Eine HTML-Seite oder ein ZIP (index.html mit Bildern) als Lernpfad in dieses Projekt einbetten">${icon("lernpfad")}<span>Lernpfad einbetten</span></button>
+ <button data-ref="lernpfadEditBtn" data-tip="Lernpfade mit dem Editor PathFinder bauen oder den Lernpfad dieses Projekts bearbeiten – mit Code-Aufgaben, die JPad selbst prüft">${icon("lernpfad")}<span>Lernpfad-Editor (PathFinder)</span></button>
                     <button data-ref="lernpfadRemoveBtn" data-tip="Den eingebetteten Lernpfad aus diesem Projekt entfernen">${icon("trash")}<span>Lernpfad entfernen</span></button>
                 </div>
                 <ul class="jp-projectlist jp-menu-group" data-ref="projectList"></ul>
@@ -524,6 +535,7 @@ export class App {
             if (f) this.embedLernpfad(f);
         });
         this.el.lernpfadRemoveBtn.addEventListener("click", () => this.removeLernpfad());
+        this.el.lernpfadEditBtn.addEventListener("click", () => { this.closeDrawer(); this.toggleLernpfadEditor(); });
         this.el.handbookBtn.addEventListener("click", async () => {
             this.closeDrawer();
             const { openHandbook } = await import("./Handbook.js");
@@ -1462,6 +1474,18 @@ export class App {
         this.lernpfadHtml = html;
         const host = this.el.lernpfad;
         host.innerHTML = "";
+        this.ensureLernpfadBridge();
+        if (this.editorOpen) {
+            // Der Editor kommt vom selben Server und speichert seine Entwürfe selbst im Browser
+            this.root.dataset.lernpfad = "1";
+            const frame = document.createElement("iframe");
+            frame.className = "jp-lernpfad-frame";
+            frame.title = "Lernpfad-Editor";
+            frame.setAttribute("allow", "clipboard-write; fullscreen");
+            frame.src = "editor/index.html?in=jpad";
+            host.appendChild(frame);
+            return;
+        }
         if (html) {
             this.root.dataset.lernpfad = "1";
             const frame = document.createElement("iframe");
@@ -1606,6 +1630,86 @@ export class App {
         } catch (e: any) {
             this.dialogs.alert({ title: "Lernpfad lässt sich nicht einbetten", text: e?.message || String(e) });
         }
+    }
+
+    /** Lernpfad-Editor PathFinder im Lernpfad-Bereich öffnen bzw. schließen */
+    toggleLernpfadEditor() {
+        this.editorOpen = !this.editorOpen;
+        this.showLernpfad(this.lernpfadHtml);
+        this.renderSettings();
+        if (this.editorOpen) { this.setSideView("lernpfad"); this.showLernpfadLayout(); }
+    }
+
+    private postToLernpfad(msg: any) {
+        const frame = this.el.lernpfad.querySelector("iframe");
+        try { frame?.contentWindow?.postMessage(msg, "*"); } catch (e) { }
+    }
+
+    private lpFiles() {
+        return this.main.getFiles().map(f => ({ name: f.name.replace(/\.java$/, ""), text: f.getText() }));
+    }
+
+    /**
+     * Schnittstelle für Lernpfade (PathFinder), siehe JPAD.md „Lernpfad-Schnittstelle“:
+     * Code übernehmen, Code lesen, und nach jedem Programmlauf die Ausgabe melden.
+     */
+    private ensureLernpfadBridge() {
+        if (this.lpBridgeReady) return;
+        this.lpBridgeReady = true;
+        window.addEventListener("message", ev => this.onLernpfadMessage(ev));
+        // Nach jedem Programmlauf die Ausgabe an den Lernpfad melden (Mitschrift der Online-IDE: registerOnRunExitListener)
+        this.main.registerOnRunExitListener(st => {
+            const output = String(st?.output ?? "");
+            this.postToLernpfad({ type: "jpad-executed", output: output.slice(0, 20000), error: !!st?.exception, files: this.lpFiles() });
+        });
+    }
+
+    private async onLernpfadMessage(ev: MessageEvent) {
+        const frame = this.el.lernpfad.querySelector("iframe");
+        if (!frame || ev.source != frame.contentWindow) return;
+        const d = ev.data;
+        if (d?.type == "jpad") {
+            if (d.action == "hello") this.postToLernpfad({ type: "jpad-hello", version: 1 });
+            else if (d.action == "code" && typeof d.code == "string" && d.code.length < 100000) await this.codeFromLernpfad(d.code);
+            else if (d.action == "script") {
+                const f = this.main.getActiveFile();
+                this.postToLernpfad({ type: "jpad-script", req: d.req, name: f?.name.replace(/\.java$/, "") ?? "", text: f?.getText() ?? "", files: this.lpFiles() });
+            }
+            return;
+        }
+        if (!this.editorOpen) return;
+        if (d?.type == "pf-editor-ready") { const doc = pathfinderDoc(this.lernpfadHtml); if (doc) this.postToLernpfad({ type: "pf-open", doc }); }
+        else if (d?.type == "pf-editor-close") { this.editorOpen = false; this.showLernpfad(this.lernpfadHtml); this.renderSettings(); }
+        else if (d?.type == "jpad-set-lernpfad" && typeof d.html == "string") {
+            await this.store.writeLernpfad(this.project.id, d.html);
+            try { localStorage.removeItem(this.lernpfadStateKey()); } catch (e) { }
+            this.editorOpen = false;
+            this.showLernpfad(d.html);
+            this.markModified();
+            this.renderSettings();
+            this.toast("Lernpfad ins Projekt übernommen – so sehen ihn die Schüler.", "check", 4000);
+        }
+    }
+
+    /** „In JPad übernehmen“ aus dem Lernpfad: Klasse als eigene Datei (gleichnamige Datei auf Wunsch ersetzen) */
+    private async codeFromLernpfad(code: string) {
+        code = code.replace(/\r\n?/g, "\n");
+        const m = code.match(/\b(?:class|interface|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/);
+        const existing = m ? this.main.getFiles().find(f => f.name.toLowerCase() == (m[1] + ".java").toLowerCase()) : undefined;
+        if (existing) {
+            const ok = await this.dialogs.confirm({ title: `${m![1]} ersetzen?`, text: `Es gibt schon die Datei „${m![1]}“. Soll ihr Inhalt durch den Code aus dem Lernpfad ersetzt werden?`, confirm: "Ersetzen" });
+            if (!ok) return;
+            existing.setText(code.endsWith("\n") ? code : code + "\n");
+            this.main.setFileActive(existing);
+            this.setView("code");
+            this.toast(`„${m![1]}“ aus dem Lernpfad übernommen.`, "check", 3200);
+            return;
+        }
+        const name = this.nameForPastedCode(code);
+        const file = this.main.createFile(name + ".java", code.endsWith("\n") ? code : code + "\n");
+        this.main.setFileActive(file);
+        this.setView("code");
+        this.toast(`Neue Datei „${name}“ mit dem Code aus dem Lernpfad.`, "check", 3200);
     }
 
     async removeLernpfad() {
@@ -1856,6 +1960,7 @@ export class App {
 
     renderSettings() {
         this.el.lernpfadRemoveBtn.hidden = !this.lernpfadHtml;
+        this.el.lernpfadEditBtn.querySelector("span")!.textContent = this.editorOpen ? "Lernpfad-Editor schließen" : (pathfinderDoc(this.lernpfadHtml) ? "Lernpfad bearbeiten (PathFinder)" : "Lernpfad-Editor (PathFinder)");
         this.el.lernpfadAddBtn.querySelector("span")!.textContent = this.lernpfadHtml ? "Lernpfad ersetzen" : "Lernpfad einbetten";
         const c = this.getThemeChoice();
         this.el.themeSwitch.querySelectorAll<HTMLElement>("[data-theme-choice]").forEach(b =>
