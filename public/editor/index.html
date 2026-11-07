@@ -56,11 +56,13 @@ if (inJPad) {
     if (e.origin !== location.origin || !String(e.data?.type || '').startsWith('pf-open')) return;
     gotOpen = true;
     if (e.data.type !== 'pf-open') return; // pf-open-none: Projekt hat (noch) keinen Lernpfad
+    let why = '';
     try {
       if (e.data.doc) { api.openDoc(e.data.doc); api.toast('Lernpfad aus dem Projekt geöffnet'); return; }
-    } catch (er) { console.warn(er); }
-    if (e.data.html && await api.importHtml(e.data.html)) return; // älterer Lernpfad: Inhalte werden Bausteine, Design bleibt
-    if (e.data.doc || e.data.html) api.toast('⚠ Der Lernpfad des Projekts ließ sich nicht öffnen – angezeigt wird dein letzter Entwurf.', 6000);
+    } catch (er) { console.warn(er); why = er?.message || String(er); }
+    try { if (e.data.html && await api.importHtml(e.data.html)) return; } // älterer Lernpfad: Inhalte werden Bausteine, Design bleibt
+    catch (er) { why = why || er?.message || String(er); }
+    if (e.data.doc || e.data.html) api.toast('⚠ Der Lernpfad des Projekts ließ sich nicht öffnen' + (why ? ' (' + why + ')' : '') + ' – angezeigt wird dein letzter Entwurf.', 10000);
   });
   // Lehrkraft bearbeitet den Lernpfad des Projekts: „Fertig“ schreibt ihn ins Projekt zurück, ✕ verwirft
   const bar = document.getElementById('edBar');
