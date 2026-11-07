@@ -10,6 +10,28 @@ if (existsSync("vendor/pathfinder/core")) {
     copyFileSync("vendor/pathfinder/icon.svg", `${out}/pathfinder/icon.svg`);
 } else console.warn("Hinweis: vendor/pathfinder fehlt (git submodule update --init) – Lernpfad-Editor wird nicht gebaut.");
 
+// Lernpfad-Editor mit Versionsnummer laden: Auf dem Webspace dürfen .js-Dateien ein Jahr im Zwischenspeicher bleiben,
+// und auch GitHub Pages liefert sonst bis zu 10 Minuten lang alte Dateien. Mit ?v=… holt jedes Update frische Dateien.
+if (existsSync(`${out}/editor/index.html`) && existsSync(`${out}/pathfinder/core/pathfinder.js`)) {
+    const { createHash } = await import("crypto");
+    const h = createHash("sha256");
+    for (const f of ["pathfinder/core/pathfinder.js", "pathfinder/core/pathfinder.css", "pathfinder/core/pftext.js", "pathfinder/core/pfskin.js", "editor/jpad-plugin.js", "editor/index.html"])
+        if (existsSync(`${out}/${f}`)) h.update(readFileSync(`${out}/${f}`));
+    const v = h.digest("hex").slice(0, 10);
+    const ei = `${out}/editor/index.html`;
+    writeFileSync(ei, readFileSync(ei, "utf8")
+        .replace("'../pathfinder/core/pathfinder.js'", `'../pathfinder/core/pathfinder.js?v=${v}'`)
+        .replace("'./jpad-plugin.js'", `'./jpad-plugin.js?v=${v}'`)
+        .replace('../pathfinder/core/pathfinder.css"', `../pathfinder/core/pathfinder.css?v=${v}"`));
+    // JPad öffnet den Editor mit derselben Nummer, damit auch editor/index.html frisch kommt
+    let n = 0;
+    for (const f of readdirSync(`${out}/assets`).filter(f => f.endsWith(".js"))) {
+        const p = `${out}/assets/${f}`, t = readFileSync(p, "utf8");
+        if (t.includes("editor/index.html?in=jpad")) { writeFileSync(p, t.split("editor/index.html?in=jpad").join(`editor/index.html?in=jpad&v=${v}`)); n++; }
+    }
+    console.log(`Lernpfad-Editor Version ${v}` + (n ? "" : " (Hinweis: Aufruf im Bundle nicht gefunden)"));
+}
+
 // Für Apache-Webspaces (die meisten einfachen Hoster)
 writeFileSync(`${out}/.htaccess`, `# JPad: Einstellungen für Apache-Webserver
 AddType application/wasm .wasm
