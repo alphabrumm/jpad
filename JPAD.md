@@ -36,7 +36,12 @@ Bedienung und Gestaltung.
 - **Lernpfad-Schnittstelle** (postMessage an `parent`): `{type:"jpad", action:"hello"}` → `jpad-hello`;
   `action:"code", code` (in JPad übernehmen); `action:"script", req` → `{type:"jpad-script", req, name, text, files}`.
   Nach jedem Programmlauf meldet JPad `{type:"jpad-executed", output, error, files}` (Ausgabe selbst mitgeschrieben).
-  Nur für den Editor: `pf-editor-ready` (→ `pf-open` mit dem PathFinder-Dokument), `pf-editor-close`, `jpad-set-lernpfad`.
+  Nur für den Editor: `pf-editor-ready` (→ `pf-open` mit dem PathFinder-Dokument, bei älteren Lernpfaden mit
+  `<section class="station">` stattdessen mit `html` – PathFinder übernimmt sie im Originaldesign), `pf-editor-close`,
+  `jpad-set-lernpfad`.
+- **PathFinder-Kopien der Lernpfade** (`learn/…/Lernpfad-*-PathFinder.html`, `learn/10/JPad-*-PathFinder.json`): sehen
+  genauso aus wie die Originale, enthalten aber das PathFinder-Dokument und lassen sich mit dem gelben Stift bearbeiten
+  (Texte, Aufgaben, Quizfragen, Code; Labore und Animationen bleiben HTML). Die Originale bleiben unverändert.
 - **Lernpfad per Link**: `jpad.pandapy.de/?lernpfad=<Adresse>` (HTML, ZIP oder Projektdatei) bzw. `?projekt=<Adresse>`
   (Projektdatei, auch kombinierbar). Die Adresse darf relativ zu JPad sein (z. B. `?lernpfad=lernpfade/schaf.json`).
   Beim ersten Aufruf entsteht ein neues Projekt; derselbe Link öffnet später dieses Projekt mit dem Stand des Schülers.

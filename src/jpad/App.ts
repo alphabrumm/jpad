@@ -56,6 +56,11 @@ function pathfinderDoc(html: string | null | undefined): any {
     try { return m ? JSON.parse(m[1]) : null; } catch (e) { return null; }
 }
 
+/** Lernpfad-Seite mit Stationen (<section class="station">), die PathFinder im Originaldesign öffnen kann */
+function importableLernpfad(html: string | null | undefined): boolean {
+    return /<section\b[^>]*class="[^"]*\bstation\b/.test(String(html || ""));
+}
+
 const SKINS: { id: string, label: string, icon: string, tip: string, bg: string, fg: string }[] = [
     { id: "default", label: "Standard", icon: "palette", tip: "Standard-Aussehen von JPad", bg: "#F3F5F9", fg: "#3157F5" },
     { id: "hund", label: "Hund", icon: "dog", tip: "Hund: Farben des Demo-Lernpfads „Bello lernt Java“", bg: "#e5f3ea", fg: "#1f8a6a" },
@@ -1644,7 +1649,7 @@ export class App {
     /** Lernpfad-Editor PathFinder im Lernpfad-Bereich öffnen bzw. schließen */
     async toggleLernpfadEditor() {
         if (!this.isTeacher) return;
-        if (!this.editorOpen && this.lernpfadHtml && !pathfinderDoc(this.lernpfadHtml) && !await this.dialogs.confirm({
+        if (!this.editorOpen && this.lernpfadHtml && !pathfinderDoc(this.lernpfadHtml) && !importableLernpfad(this.lernpfadHtml) && !await this.dialogs.confirm({
             title: "Lernpfad bearbeiten",
             text: "Dieser Lernpfad wurde nicht mit PathFinder erstellt und lässt sich (noch) nicht direkt bearbeiten. Den Editor trotzdem öffnen, z. B. für einen neuen Lernpfad? Erst „Fertig“ ersetzt den Lernpfad des Projekts.",
             confirm: "Editor öffnen"
@@ -1710,7 +1715,12 @@ export class App {
             return;
         }
         if (!this.editorOpen) return;
-        if (d?.type == "pf-editor-ready") { const doc = pathfinderDoc(this.lernpfadHtml); if (doc) this.postToLernpfad({ type: "pf-open", doc }); }
+        if (d?.type == "pf-editor-ready") {
+            const doc = pathfinderDoc(this.lernpfadHtml);
+            if (doc) this.postToLernpfad({ type: "pf-open", doc });
+            // älterer Lernpfad mit Stationen: PathFinder übernimmt ihn im Originaldesign
+            else if (this.lernpfadHtml && importableLernpfad(this.lernpfadHtml)) this.postToLernpfad({ type: "pf-open", html: this.lernpfadHtml });
+        }
         else if (d?.type == "pf-editor-close") { this.editorOpen = false; this.showLernpfad(this.lernpfadHtml); this.renderSettings(); }
         else if (d?.type == "jpad-set-lernpfad" && typeof d.html == "string") {
             await this.store.writeLernpfad(this.project.id, d.html);
