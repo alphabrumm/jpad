@@ -46,14 +46,21 @@ const sample = () => ({
 });
 
 let host = {};
+let gotOpen = false; // hat JPad den Lernpfad des Projekts geschickt?
 let bridge = null;
 if (inJPad) {
   bridge = makeBridge();
   host = createBridgeHost(bridge, { editor: true });
   addEventListener('message', async e => {
-    if (e.source !== parent || e.data?.type !== 'pf-open') return;
-    if (e.data.doc) { api.openDoc(e.data.doc); api.toast('Lernpfad aus dem Projekt geöffnet'); }
-    else if (e.data.html) await api.importHtml(e.data.html); // älterer Lernpfad: Inhalte werden Bausteine, Design bleibt
+    // vom eigenen Server (JPad) – e.source ist in manchen Browsern nicht derselbe Verweis wie parent
+    if (e.origin !== location.origin || !String(e.data?.type || '').startsWith('pf-open')) return;
+    gotOpen = true;
+    if (e.data.type !== 'pf-open') return; // pf-open-none: Projekt hat (noch) keinen Lernpfad
+    try {
+      if (e.data.doc) { api.openDoc(e.data.doc); api.toast('Lernpfad aus dem Projekt geöffnet'); return; }
+    } catch (er) { console.warn(er); }
+    if (e.data.html && await api.importHtml(e.data.html)) return; // älterer Lernpfad: Inhalte werden Bausteine, Design bleibt
+    if (e.data.doc || e.data.html) api.toast('⚠ Der Lernpfad des Projekts ließ sich nicht öffnen – angezeigt wird dein letzter Entwurf.', 6000);
   });
   // Lehrkraft bearbeitet den Lernpfad des Projekts: „Fertig“ schreibt ihn ins Projekt zurück, ✕ verwirft
   const bar = document.getElementById('edBar');
@@ -64,6 +71,8 @@ if (inJPad) {
   bar.append(done, x);
 }
 const api = startPathFinder({ appName: 'JPad', logo: '../jpad-icon.svg', storage: 'jpad-pathfinder', plugins: [jpadPlugin], host, sample });
-if (bridge) setTimeout(() => bridge.post({ type: 'pf-editor-ready' }), 50);
+if (bridge) { // nachfragen, falls die erste Meldung zu früh kam
+  let n = 0; const ask = () => { if (gotOpen || n++ > 5) return; bridge.post({ type: 'pf-editor-ready' }); setTimeout(ask, 800); }; setTimeout(ask, 50);
+}
 </script>
 </body></html>

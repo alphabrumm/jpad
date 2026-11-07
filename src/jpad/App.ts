@@ -51,9 +51,16 @@ function loadSkinFonts() {
 /** JPadBlox: Themes für die Auswahl im Menü (bg/fg: Farben des kleinen Vorschau-Felds) */
 /** PathFinder-Dokument aus einem eingebetteten Lernpfad (zum Weiterbearbeiten im Editor) */
 function pathfinderDoc(html: string | null | undefined): any {
+    // ohne regulären Ausdruck über die ganze Seite: Lernpfade können mehrere MB groß sein (Safari bricht dann ab)
     const s = String(html || "");
-    const m = s.match(/<script type="application\/json" id="pf-doc-app">([\s\S]*?)<\/script>/) || s.match(/<script type="application\/json" id="pf-doc">([\s\S]*?)<\/script>/);
-    try { return m ? JSON.parse(m[1]) : null; } catch (e) { return null; }
+    for (const id of ["pf-doc-app", "pf-doc"]) {
+        const tag = `<script type="application/json" id="${id}">`, a = s.indexOf(tag);
+        if (a < 0) continue;
+        const b = s.indexOf("</script>", a + tag.length);
+        if (b < 0) continue;
+        try { return JSON.parse(s.slice(a + tag.length, b)); } catch (e) { }
+    }
+    return null;
 }
 
 /** Lernpfad-Seite mit Stationen (<section class="station">), die PathFinder im Originaldesign öffnen kann */
@@ -1717,9 +1724,10 @@ export class App {
         if (!this.editorOpen) return;
         if (d?.type == "pf-editor-ready") {
             const doc = pathfinderDoc(this.lernpfadHtml);
-            if (doc) this.postToLernpfad({ type: "pf-open", doc });
-            // älterer Lernpfad mit Stationen: PathFinder übernimmt ihn im Originaldesign
-            else if (this.lernpfadHtml && importableLernpfad(this.lernpfadHtml)) this.postToLernpfad({ type: "pf-open", html: this.lernpfadHtml });
+            // Dokument und Seite mitschicken: Ist kein PathFinder-Dokument dabei (älterer Lernpfad mit Stationen),
+            // übernimmt PathFinder die Seite im Originaldesign
+            if (doc || (this.lernpfadHtml && importableLernpfad(this.lernpfadHtml))) this.postToLernpfad({ type: "pf-open", doc: doc || undefined, html: this.lernpfadHtml });
+            else this.postToLernpfad({ type: "pf-open-none" });
         }
         else if (d?.type == "pf-editor-close") { this.editorOpen = false; this.showLernpfad(this.lernpfadHtml); this.renderSettings(); }
         else if (d?.type == "jpad-set-lernpfad" && typeof d.html == "string") {
