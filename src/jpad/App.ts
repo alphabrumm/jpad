@@ -401,7 +401,7 @@ export class App {
                     <button data-ref="teacherBtn" hidden data-tip="Lehrkraft: alle Lernpfade und Projekte mit JCode, Link und Öffnen-Knopf">${icon("jcode")}<span>Lehrkraft: alle Lernpfade</span></button>
                     <button data-ref="demoBtn" data-tip="Neues Projekt mit einer frischen Kopie des Demo-Lernpfads: JPad kennenlernen und die Klasse Hund bauen">${icon("lernpfad")}<span>Demo laden</span></button>
                     <button data-ref="lernpfadAddBtn" data-tip="Eine HTML-Seite oder ein ZIP (index.html mit Bildern) als Lernpfad in dieses Projekt einbetten">${icon("lernpfad")}<span>Lernpfad einbetten</span></button>
- <button data-ref="lernpfadEditBtn" data-tip="Lernpfade mit dem Editor PathFinder bauen oder den Lernpfad dieses Projekts bearbeiten – mit Code-Aufgaben, die JPad selbst prüft">${icon("lernpfad")}<span>Lernpfad-Editor (PathFinder)</span></button>
+                    <button data-ref="lernpfadEditBtn" hidden data-tip="Lernpfade mit dem Editor PathFinder bauen oder den Lernpfad dieses Projekts bearbeiten – mit Code-Aufgaben, die JPad selbst prüft">${icon("lernpfad")}<span>Lernpfad-Editor (PathFinder)</span></button>
                     <button data-ref="lernpfadRemoveBtn" data-tip="Den eingebetteten Lernpfad aus diesem Projekt entfernen">${icon("trash")}<span>Lernpfad entfernen</span></button>
                 </div>
                 <ul class="jp-projectlist jp-menu-group" data-ref="projectList"></ul>
@@ -481,6 +481,7 @@ export class App {
         this.el.demoBtn.addEventListener("click", () => this.openDemo());
         this.el.jcodeBtn.addEventListener("click", () => this.openJCode());
         this.el.teacherBtn.hidden = !this.isTeacher;
+        this.el.lernpfadEditBtn.hidden = !this.isTeacher;
         this.el.teacherBtn.addEventListener("click", () => { this.closeDrawer(); this.openTeacherList(); });
         this.renderSkinButton();
 
@@ -1497,6 +1498,14 @@ export class App {
             frame.setAttribute("allow", "clipboard-write; fullscreen");
             frame.srcdoc = this.withStorageShim(html);
             host.appendChild(frame);
+            if (this.isTeacher) {
+                // schwebender gelber Stift: den geöffneten Lernpfad bearbeiten (nur Lehrkraft)
+                const b = document.createElement("button");
+                b.className = "jp-lp-edit-fab"; b.title = "Lernpfad bearbeiten (nur Lehrkraft)"; b.setAttribute("aria-label", "Lernpfad bearbeiten");
+                b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
+                b.onclick = () => this.toggleLernpfadEditor();
+                host.appendChild(b);
+            }
         } else {
             delete this.root.dataset.lernpfad;
             if (this.sideView == "lernpfad") {
@@ -1633,7 +1642,13 @@ export class App {
     }
 
     /** Lernpfad-Editor PathFinder im Lernpfad-Bereich öffnen bzw. schließen */
-    toggleLernpfadEditor() {
+    async toggleLernpfadEditor() {
+        if (!this.isTeacher) return;
+        if (!this.editorOpen && this.lernpfadHtml && !pathfinderDoc(this.lernpfadHtml) && !await this.dialogs.confirm({
+            title: "Lernpfad bearbeiten",
+            text: "Dieser Lernpfad wurde nicht mit PathFinder erstellt und lässt sich (noch) nicht direkt bearbeiten. Den Editor trotzdem öffnen, z. B. für einen neuen Lernpfad? Erst „Fertig“ ersetzt den Lernpfad des Projekts.",
+            confirm: "Editor öffnen"
+        })) return;
         this.editorOpen = !this.editorOpen;
         this.showLernpfad(this.lernpfadHtml);
         this.renderSettings();

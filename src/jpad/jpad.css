@@ -3331,3 +3331,8 @@ html.jp-marking .jp-blockpanel .jp-block[data-surround] { animation: jp-surround
 .jp-teach-row:not([data-kind="Projekt"]) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
 .jp-teach-row:not([data-kind="Projekt"]) .jp-teach-code { background: color-mix(in srgb, var(--marker) 45%, var(--surface)); font-size: 18px; }
 .jp-teach-title { gap: 3px; }
+
+/* Lehrkraft: schwebender Stift zum Bearbeiten des Lernpfads */
+.jp-lp-edit-fab { position: absolute; right: 16px; bottom: 16px; z-index: 5; width: 52px; height: 52px; border-radius: 50%; border: 2px solid #1f1b2e; background: #f6c434; color: #1f1b2e; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: 0; }
+.jp-lp-edit-fab svg { width: 26px; height: 26px; }
+.jp-lp-edit-fab:active { transform: scale(.94); }
