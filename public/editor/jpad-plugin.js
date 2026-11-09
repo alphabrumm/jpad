@@ -57,7 +57,12 @@ export function createBridgeHost(bridge, { editor = false } = {}) {
     script: () => bridge.ask('script'),
     lastRun: () => last,
   };
-  if (editor) host.adopt = async (html, title) => bridge.post({ type: 'jpad-set-lernpfad', html, title });
+  if (editor) {
+    host.adopt = async (html, title) => bridge.post({ type: 'jpad-set-lernpfad', html, title });
+    // „Als JPad-Projekt exportieren“: JPad schreibt die Projektdatei (Lernpfad + Code des Projekts)
+    host.exportProject = async (html, title) => bridge.post({ type: 'jpad-export-project', html, title });
+    host.exportProjectHelp = 'JSON-Projektdatei mit diesem Lernpfad und dem Code, der gerade im Projekt steht (z. B. Startcode). Gib sie z. B. über Moodle weiter – die Schüler öffnen sie in JPad.';
+  }
   return host;
 }
 

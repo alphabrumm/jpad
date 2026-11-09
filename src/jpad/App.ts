@@ -1661,6 +1661,17 @@ export class App {
             text: "Dieser Lernpfad wurde nicht mit PathFinder erstellt und lässt sich (noch) nicht direkt bearbeiten. Den Editor trotzdem öffnen, z. B. für einen neuen Lernpfad? Erst „Fertig“ ersetzt den Lernpfad des Projekts.",
             confirm: "Editor öffnen"
         })) return;
+        // Hinweis: Änderungen betreffen nur die eigene Kopie, nicht den Online-Lernpfad hinter dem JCode
+        if (!this.editorOpen) {
+            let skip = false;
+            try { skip = localStorage.getItem("jpad.lpEditNoticeOff") == "1"; } catch (e) { }
+            if (!skip) {
+                const jcode = this.store.list().find(p => p.id == this.project.id)?.jcode;
+                const r = await this.dialogs.lernpfadCopyNotice({ jcode });
+                if (!r.ok) return;
+                if (r.dontShow) try { localStorage.setItem("jpad.lpEditNoticeOff", "1"); } catch (e) { }
+            }
+        }
         this.editorOpen = !this.editorOpen;
         this.showLernpfad(this.lernpfadHtml);
         this.renderSettings();
@@ -1730,6 +1741,10 @@ export class App {
             else this.postToLernpfad({ type: "pf-open-none" });
         }
         else if (d?.type == "pf-editor-close") { this.editorOpen = false; this.showLernpfad(this.lernpfadHtml); this.renderSettings(); }
+        else if (d?.type == "jpad-export-project" && typeof d.html == "string") {
+            // „Als JPad-Projekt exportieren“: Projektdatei mit dem bearbeiteten Lernpfad und dem Code des Projekts
+            await this.exportProject({ lernpfadHtml: d.html, title: typeof d.title == "string" ? d.title : undefined });
+        }
         else if (d?.type == "jpad-set-lernpfad" && typeof d.html == "string") {
             await this.store.writeLernpfad(this.project.id, d.html);
             try { localStorage.removeItem(this.lernpfadStateKey()); } catch (e) { }
@@ -1810,7 +1825,11 @@ export class App {
         this.main.getCompiler()?.triggerCompile();
     }
 
-    async exportProject() {
+    /**
+     * Projekt als JSON-Datei sichern. Aus dem Lernpfad-Editor („Als JPad-Projekt exportieren“) kommt der
+     * bearbeitete Lernpfad mit; die Datei heißt dann nach dem Lernpfad: JPad-Titel.json.
+     */
+    async exportProject(o: { lernpfadHtml?: string, title?: string } = {}) {
         this.main.flush();
         const files: ProjectFile[] = this.main.getFiles().map(f => ({ name: f.name, text: f.getText() }));
         let exported;
@@ -1824,9 +1843,14 @@ export class App {
             const zip = await this.store.readSpritesheet(this.project.id);
             if (zip) exported.spritesheetBase64 = bytesToBase64(zip);
         } catch (e) { console.error(e); }
-        if (this.lernpfadHtml) (exported as any).lernpfadHtml = this.lernpfadHtml;
+        const lp = o.lernpfadHtml ?? this.lernpfadHtml;
+        if (lp) (exported as any).lernpfadHtml = lp;
+        if (o.title) exported.name = o.title;
         const json = JSON.stringify(exported, undefined, 2);
-        const filename = this.project.name.replace(/[\\/:*?"<>|]/g, "_") + ".json";
+        const filename = o.lernpfadHtml
+            ? "JPad-" + ((o.title || this.project.name).replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/Ä/g, "Ae")
+                .replace(/Ö/g, "Oe").replace(/Ü/g, "Ue").replace(/ß/g, "ss").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "Projekt") + ".json"
+            : this.project.name.replace(/[\\/:*?"<>|]/g, "_") + ".json";
         const file = new File([json], filename, { type: "application/json" });
 
         let done = false;
@@ -1847,6 +1871,7 @@ export class App {
             a.click();
             setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
         }
+        if (o.lernpfadHtml) { this.toast(`„${filename}“ exportiert – Lernpfad mit dem Code des Projekts.`, "check", 4000); return; }
         this.project.exported = Date.now();
         this.store.update(this.project.id, { exported: this.project.exported, modified: this.project.modified });
         this.renderProjectTitle();

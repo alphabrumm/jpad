@@ -33,6 +33,11 @@ Bedienung und Gestaltung.
   die Ausgabe – „enthält“ oder „genau gleich“ – und optional Pflicht-Code wie `for`); Code-Bausteine bekommen
   „In JPad übernehmen“ (Klasse als eigene Datei, gleichnamige Datei auf Nachfrage ersetzen). Export „für JPad“ bzw.
   „In dieses JPad-Projekt übernehmen“ macht daraus den Lernpfad des Projekts; im normalen Browser Selbstkontrolle.
+- **Hinweis beim Stift** (Lehrkraft): Vor dem Öffnen des Editors erklärt ein Fenster, dass Änderungen nur die eigene
+  Kopie im Projekt betreffen, nicht den Online-Lernpfad hinter dem JCode; weitergeben über ⋯ → Export → „für JPad“
+  („Nicht mehr anzeigen“ merkt `jpad.lpEditNoticeOff`). Dort gibt es **„Als JPad-Projekt exportieren“**
+  (PathFinder-Hook `host.exportProject`): JSON-Projektdatei `JPad-<Titel>.json` mit dem bearbeiteten Lernpfad und dem
+  Code des Projekts (Meldung `jpad-export-project` an JPad).
 - **Lernpfad-Schnittstelle** (postMessage an `parent`): `{type:"jpad", action:"hello"}` → `jpad-hello`;
   `action:"code", code` (in JPad übernehmen); `action:"script", req` → `{type:"jpad-script", req, name, text, files}`.
   Nach jedem Programmlauf meldet JPad `{type:"jpad-executed", output, error, files}` (Ausgabe selbst mitgeschrieben).

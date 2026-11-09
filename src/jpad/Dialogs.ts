@@ -1031,6 +1031,36 @@ export class Dialogs {
         }).then(v => v === true);
     }
 
+    /**
+     * Lehrkraft öffnet den Lernpfad-Editor: Änderungen betreffen nur die eigene Kopie im Projekt,
+     * nicht den Online-Lernpfad hinter dem JCode. Liefert true = bearbeiten, false = abbrechen.
+     */
+    lernpfadCopyNotice(o: { jcode?: string }): Promise<{ ok: boolean, dontShow: boolean }> {
+        const code = o.jcode ? `<b>${escapeHtml(o.jcode)}</b>` : "";
+        return this.open(`
+            <h2 class="jp-sheet-title">Du bearbeitest deine eigene Kopie</h2>
+            <p class="jp-sheet-text">Deine Änderungen gelten nur für dieses Projekt auf diesem Gerät.
+                ${o.jcode ? `Der Online-Lernpfad mit dem JCode ${code} bleibt unverändert – wer den JCode oder Link öffnet, sieht weiter die bisherige Fassung.`
+                          : "Ein Online-Lernpfad (JCode oder Link) ändert sich dadurch nicht."}</p>
+            <p class="jp-sheet-text"><b>Damit deine Schüler die Änderungen bekommen,</b> exportiere den Lernpfad im Editor über
+                <b>⋯ → Export → „für JPad“</b>:</p>
+            <ul class="jp-sheet-text jp-notice-list">
+                <li><b>Als JPad-Projekt exportieren</b> – Projektdatei mit Lernpfad <i>und</i> dem Code des Projekts (z. B. Startcode, mit dem die Schüler beginnen).</li>
+                <li><b>Exportieren</b> – nur der Lernpfad als HTML-Datei (zum Einbetten in ein JPad-Projekt).</li>
+            </ul>
+            <p class="jp-sheet-text">Die Datei gibst du dann wie gewohnt weiter, z. B. über Moodle.</p>
+            <label class="jp-array-check jp-notice-check"><input type="checkbox" data-dontshow><span>Diesen Hinweis nicht mehr anzeigen</span></label>
+            <div class="jp-sheet-buttons">
+                <button class="jp-btn" data-cancel>Abbrechen</button>
+                <button class="jp-btn jp-btn-primary" data-ok>Verstanden, bearbeiten</button>
+            </div>`, (sheet, close) => {
+            const ok = sheet.querySelector<HTMLElement>("[data-ok]")!;
+            const dont = sheet.querySelector<HTMLInputElement>("[data-dontshow]")!;
+            ok.addEventListener("click", () => close({ ok: true, dontShow: dont.checked }));
+            setTimeout(() => ok.focus(), 60);
+        }).then(v => (v && v.ok) ? v : { ok: false, dontShow: false });
+    }
+
     /** Mehrzeiliges Feld, in das man selbst einsetzt (Rückfall, wenn die Zwischenablage nicht lesbar ist). */
     pasteArea(o: { title: string, text: string, confirm: string }): Promise<string | null> {
         return this.open(`
