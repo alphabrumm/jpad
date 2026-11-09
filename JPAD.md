@@ -42,6 +42,11 @@ Bedienung und Gestaltung.
 - **PathFinder-Kopien der Lernpfade** (`learn/…/Lernpfad-*-PathFinder.html`, `learn/10/JPad-*-PathFinder.json`): sehen
   genauso aus wie die Originale, enthalten aber das PathFinder-Dokument und lassen sich mit dem gelben Stift bearbeiten
   (Texte, Aufgaben, Quizfragen, Code; Labore und Animationen bleiben HTML). Die Originale bleiben unverändert.
+- **„Die Herde“ – Arrays** (`learn/10/JPad-Arrays-Herde.json`, JCode U67CU): erster Lernpfad, der von Grund auf in
+  PathFinder gebaut ist (normales PathFinder-Design, alle Bausteine nativ bearbeitbar). Schäfer Ulf aus dem
+  Schaf-Konstruktor führt `Schaf[] herde` ein: Stall-Analogie, Index ab 0 (Abstand vom Tor), for-Schleife, `herde.length`,
+  Bonus rückwärts. Sechs Animationen als HTML-Bausteine (nur SVG + CSS, keine Skripte; eine zum Antippen über
+  Radio-Knöpfe), vier Programmier-Aufgaben, die JPad nach dem Programmlauf prüft.
 - **Lernpfad per Link**: `jpad.pandapy.de/?lernpfad=<Adresse>` (HTML, ZIP oder Projektdatei) bzw. `?projekt=<Adresse>`
   (Projektdatei, auch kombinierbar). Die Adresse darf relativ zu JPad sein (z. B. `?lernpfad=lernpfade/schaf.json`).
   Beim ersten Aufruf entsteht ein neues Projekt; derselbe Link öffnet später dieses Projekt mit dem Stand des Schülers.
