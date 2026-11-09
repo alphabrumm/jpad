@@ -45,8 +45,10 @@ Bedienung und Gestaltung.
 - **„Die Herde“ – Arrays** (`learn/10/JPad-Arrays-Herde.json`, JCode U67CU): erster Lernpfad, der von Grund auf in
   PathFinder gebaut ist (normales PathFinder-Design, alle Bausteine nativ bearbeitbar). Schäfer Ulf aus dem
   Schaf-Konstruktor führt `Schaf[] herde` ein: Stall-Analogie, Index ab 0 (Abstand vom Tor), zählende Wiederholung mit
-  `while` und `Integer` (keine for-Schleife, keine Basisdatentypen), `herde.length`, Bonus rückwärts. Die Schüler legen
-  das Array selbst mit dem Baustein „Variable“ (Häkchen Array) im Hauptprogramm an; Code-Beispiele ohne Übernehmen-Knopf.
+  `while` und `Integer` (keine for-Schleife, keine Basisdatentypen), `herde.length`, Bonus rückwärts. Station „Den Stall bauen“
+  führt Schritt für Schritt (mit Screenshots) durch den Baustein „Variable“ (Datentyp Schaf, Häkchen Array, herde, 5);
+  danach erklären „Platz schaffen“, „Gezählt wird ab 0“ und „Schafe ziehen ein“ das Konzept mit den Animationen. Der Stall
+  hat von Anfang an 5 Plätze (Lotte und Bernd ziehen später in die freien Plätze 3 und 4). Code-Beispiele ohne Übernehmen-Knopf.
   Sieben Animationen als HTML-Bausteine (nur SVG + CSS, keine Skripte; eine zum Antippen über Radio-Knöpfe).
 - **„In JPad übernehmen“** (Code-Baustein bzw. Startcode aus dem Lernpfad): neue Klasse → neuer Reiter mit dem
   Klassennamen (gibt es ihn schon: Rückfrage „ersetzen?“); Teil des Hauptprogramms → unten im Reiter „Hauptprogramm“
