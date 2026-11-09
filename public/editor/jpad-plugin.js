@@ -146,7 +146,8 @@ public class Hund { … }            (optional: Startcode, wird in JPad als Date
 \`\`\`java lösung
 …                                  (optional: Musterlösung zum Aufdecken)
 \`\`\`
-(Normale \`\`\`java-Codeblöcke außerhalb von Aufgaben bekommen in JPad den Knopf „In JPad übernehmen“.)`,
+(Normale \`\`\`java-Codeblöcke außerhalb von Aufgaben bekommen in JPad den Knopf „In JPad übernehmen“ –
+ nur wenn die Schüler den Code wirklich brauchen. Beispiel-Code zum Anschauen: \`\`\`java ohne-knopf)`,
       make(S, H) {
         const start = S.code.find(c => !/^(loesung|losung|solution)$/.test(c.tag)), sol = S.code.find(c => /^(loesung|losung|solution)$/.test(c.tag));
         const expect = (S.one('ausgabe') || '').replace(/\\n/g, '\n');

@@ -44,9 +44,13 @@ Bedienung und Gestaltung.
   (Texte, Aufgaben, Quizfragen, Code; Labore und Animationen bleiben HTML). Die Originale bleiben unverändert.
 - **„Die Herde“ – Arrays** (`learn/10/JPad-Arrays-Herde.json`, JCode U67CU): erster Lernpfad, der von Grund auf in
   PathFinder gebaut ist (normales PathFinder-Design, alle Bausteine nativ bearbeitbar). Schäfer Ulf aus dem
-  Schaf-Konstruktor führt `Schaf[] herde` ein: Stall-Analogie, Index ab 0 (Abstand vom Tor), for-Schleife, `herde.length`,
-  Bonus rückwärts. Sechs Animationen als HTML-Bausteine (nur SVG + CSS, keine Skripte; eine zum Antippen über
-  Radio-Knöpfe), vier Programmier-Aufgaben, die JPad nach dem Programmlauf prüft.
+  Schaf-Konstruktor führt `Schaf[] herde` ein: Stall-Analogie, Index ab 0 (Abstand vom Tor), zählende Wiederholung mit
+  `while` und `Integer` (keine for-Schleife, keine Basisdatentypen), `herde.length`, Bonus rückwärts. Die Schüler legen
+  das Array selbst mit dem Baustein „Variable“ (Häkchen Array) im Hauptprogramm an; Code-Beispiele ohne Übernehmen-Knopf.
+  Sieben Animationen als HTML-Bausteine (nur SVG + CSS, keine Skripte; eine zum Antippen über Radio-Knöpfe).
+- **„In JPad übernehmen“** (Code-Baustein bzw. Startcode aus dem Lernpfad): neue Klasse → neuer Reiter mit dem
+  Klassennamen (gibt es ihn schon: Rückfrage „ersetzen?“); Teil des Hauptprogramms → unten im Reiter „Hauptprogramm“
+  angehängt, mit zwei Leerzeilen Abstand. Steht der Code dort schon, wird nichts doppelt eingefügt.
 - **Lernpfad per Link**: `jpad.pandapy.de/?lernpfad=<Adresse>` (HTML, ZIP oder Projektdatei) bzw. `?projekt=<Adresse>`
   (Projektdatei, auch kombinierbar). Die Adresse darf relativ zu JPad sein (z. B. `?lernpfad=lernpfade/schaf.json`).
   Beim ersten Aufruf entsteht ein neues Projekt; derselbe Link öffnet später dieses Projekt mit dem Stand des Schülers.

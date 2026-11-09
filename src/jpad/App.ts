@@ -1742,24 +1742,45 @@ export class App {
     }
 
     /** „In JPad übernehmen“ aus dem Lernpfad: Klasse als eigene Datei (gleichnamige Datei auf Wunsch ersetzen) */
+    /**
+     * „In JPad übernehmen“ aus dem Lernpfad:
+     * - neue Klasse → neuer Reiter mit dem Klassennamen (gibt es ihn schon: fragen, ob ersetzt werden soll)
+     * - Teil des Hauptprogramms → unten an das Hauptprogramm anhängen, mit zwei Leerzeilen Abstand
+     *   (steht der Code dort schon, wird nichts doppelt eingefügt)
+     */
     private async codeFromLernpfad(code: string) {
-        code = code.replace(/\r\n?/g, "\n");
+        code = code.replace(/\r\n?/g, "\n").replace(/\s+$/, "");
+        const norm = (s: string) => s.replace(/\r\n?/g, "\n").split("\n").map(l => l.replace(/\s+$/, "")).join("\n").trim();
+        const show = (f: GUIFile, msg: string) => { this.main.setFileActive(f); this.setView("code"); this.toast(msg, "check", 3200); };
+        const files = this.main.getFiles();
         const m = code.match(/\b(?:class|interface|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/);
-        const existing = m ? this.main.getFiles().find(f => f.name.toLowerCase() == (m[1] + ".java").toLowerCase()) : undefined;
-        if (existing) {
-            const ok = await this.dialogs.confirm({ title: `${m![1]} ersetzen?`, text: `Es gibt schon die Datei „${m![1]}“. Soll ihr Inhalt durch den Code aus dem Lernpfad ersetzt werden?`, confirm: "Ersetzen" });
-            if (!ok) return;
-            existing.setText(code.endsWith("\n") ? code : code + "\n");
-            this.main.setFileActive(existing);
-            this.setView("code");
-            this.toast(`„${m![1]}“ aus dem Lernpfad übernommen.`, "check", 3200);
+        if (m) {
+            const existing = files.find(f => f.name.toLowerCase() == (m[1] + ".java").toLowerCase());
+            if (existing) {
+                if (norm(existing.getText()) == norm(code)) { show(existing, `„${m[1]}“ ist schon auf dem neuesten Stand.`); return; }
+                const ok = await this.dialogs.confirm({ title: `${m[1]} ersetzen?`, text: `Es gibt schon die Datei „${m[1]}“. Soll ihr Inhalt durch den Code aus dem Lernpfad ersetzt werden?`, confirm: "Ersetzen" });
+                if (!ok) return;
+                existing.setText(code + "\n");
+                show(existing, `„${m[1]}“ aus dem Lernpfad übernommen.`);
+                return;
+            }
+            const file = this.main.createFile(this.nameForPastedCode(code) + ".java", code + "\n");
+            show(file, `Neue Klasse „${m[1]}“ aus dem Lernpfad.`);
             return;
         }
-        const name = this.nameForPastedCode(code);
-        const file = this.main.createFile(name + ".java", code.endsWith("\n") ? code : code + "\n");
-        this.main.setFileActive(file);
-        this.setView("code");
-        this.toast(`Neue Datei „${name}“ mit dem Code aus dem Lernpfad.`, "check", 3200);
+        // Hauptprogramm: Reiter „Hauptprogramm“, sonst die erste Datei ohne Klasse
+        const isMain = (f: GUIFile) => /^hauptprogramm\.java$/i.test(f.name);
+        const main = files.find(isMain) ?? files.find(f => !/\b(?:class|interface|enum)\s+[A-Za-z_]/.test(f.getText()));
+        if (!main) {
+            const file = this.main.createFile("Hauptprogramm.java", code + "\n");
+            show(file, "Neues Hauptprogramm mit dem Code aus dem Lernpfad.");
+            return;
+        }
+        const old = main.getText().replace(/\s+$/, "");
+        const label = main.name.replace(/\.java$/, "");
+        if (norm(old).includes(norm(code))) { show(main, `Der Code steht schon in „${label}“.`); return; }
+        main.setText((old ? old + "\n\n\n" : "") + code + "\n");
+        show(main, `Code unten im „${label}“ ergänzt.`);
     }
 
     async removeLernpfad() {
