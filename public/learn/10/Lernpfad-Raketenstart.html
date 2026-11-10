@@ -1028,8 +1028,8 @@ export function startPathFinder(opts = {}) {
   function certHtml() {
     const c = doc.cert, can = certReady();
     if (!c.on) return `<div class="lp-cert" style="opacity:.5"><div class="seal">★</div><div><b>Zertifikat ist aus</b><br><button class="lp-btn alt" data-act="certcfg">⚙ Zertifikat einstellen</button></div></div>`;
-    return `<div class="lp-cert" id="st-cert"><div class="seal">★</div><div><b>${doc.form === 'challenge' ? 'Challenge geschafft?' : 'Zertifikat'}</b><br>${E() ? `Am Ende: Name eingeben, PDF mit Bearbeitungszeit und Erfolgsübersicht.<br><button class="lp-btn alt" data-act="certcfg">⚙ Zertifikat einstellen</button><button class="lp-btn alt" data-act="certprev">Muster ansehen</button>`
-      : (can ? `Alles geschafft – erstelle dein Zertifikat.<br><button class="lp-btn" data-act="certprev">★ Zertifikat (PDF) erstellen</button>` : `Wird frei, wenn ${c.need === 'alle' ? 'alle Aufgaben gelöst sind' : c.need === 'pct' ? `mindestens ${c.pct} % gelöst sind` : '…'}.<br><button class="lp-btn" disabled>★ Zertifikat (PDF) erstellen</button>`)}</div></div>`;
+    return `<div class="lp-cert" id="st-cert"><div class="seal">★</div><div><b>${c.need === 'immer' ? 'Nachweis' : doc.form === 'challenge' ? 'Challenge geschafft?' : 'Zertifikat'}</b><br>${E() ? `Am Ende: Name eingeben, PDF mit Bearbeitungszeit und Erfolgsübersicht.<br><button class="lp-btn alt" data-act="certcfg">⚙ Zertifikat einstellen</button><button class="lp-btn alt" data-act="certprev">Muster ansehen</button>`
+      : (c.need === 'immer' ? `Erstelle deinen Nachweis mit dem aktuellen Stand – jederzeit, auch wenn noch nicht alles gelöst ist.<br><button class="lp-btn" data-act="certprev">★ Nachweis (PDF) erstellen</button>` : can ? `Alles geschafft – erstelle dein Zertifikat.<br><button class="lp-btn" data-act="certprev">★ Zertifikat (PDF) erstellen</button>` : `Wird frei, wenn ${c.need === 'alle' ? 'alle Aufgaben gelöst sind' : c.need === 'pct' ? `mindestens ${c.pct} % gelöst sind` : '…'}.<br><button class="lp-btn" disabled>★ Zertifikat (PDF) erstellen</button>`)}</div></div>`;
   }
   function shuffled(arr, seed) { let h = 0; for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0; const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   const checksOf = s => { const c = s.blocks.filter(isCheck).map(b => b.id); if (s.check) c.push('st:' + s.id); return c; };
@@ -1366,7 +1366,7 @@ export function startPathFinder(opts = {}) {
     if (id === 'cert') {
       b = clone(doc.cert); title = '★ Zertifikat';
       fields = [{ k: 'on', l: 'Zertifikat am Ende anbieten', t: 'check' },
-        { k: 'need', l: 'Erreichbar, wenn …', t: 'select', o: [['alle', 'alle Aufgaben gelöst sind'], ['pct', 'ein Mindestanteil gelöst ist'], ['immer', 'immer']] },
+        { k: 'need', l: 'Erreichbar, wenn …', t: 'select', o: [['alle', 'alle Aufgaben gelöst sind'], ['pct', 'ein Mindestanteil gelöst ist'], ['immer', 'immer – dann als „Nachweis“ mit dem aktuellen Stand']] },
         { k: 'pct', l: 'Mindestanteil in %', t: 'number', show: x => x.need === 'pct' },
         { k: 'text', l: 'Text auf dem Zertifikat', t: 'text', help: '„Max Muster … hat den Lernpfad erfolgreich bearbeitet.“' },
         { k: 'show.zeit', l: 'Bearbeitungszeit zeigen', t: 'check' }, { k: 'show.tipps', l: 'Benutzte Tipps und Lösungshilfen zeigen', t: 'check' },
@@ -1664,7 +1664,7 @@ export function startPathFinder(opts = {}) {
     const xp = c.show.xp && doc.form === 'challenge' ? `${xpNow()} von ${xpMax()} XP` : '';
     const from = new Date(prog.start || Date.now()).toLocaleDateString('de-DE'), to = new Date().toLocaleDateString('de-DE');
     const code = certCode([doc.id, (name || '').trim().toLowerCase(), pct, mins, to]);
-    return { c, name: (name || '').trim(), mins, rows, pct, solved, total: all.length, pts, xp, from, to, code, head: doc.form === 'challenge' ? 'Challenge-Urkunde' : 'Zertifikat' };
+    return { c, name: (name || '').trim(), mins, rows, pct, solved, total: all.length, pts, xp, from, to, code, head: c.need === 'immer' ? 'Nachweis' : doc.form === 'challenge' ? 'Challenge-Urkunde' : 'Zertifikat' };
   }
   function certView(D) {
     const p = PALETTES[doc.design.pal].l, c = D.c;
@@ -1719,7 +1719,7 @@ export function startPathFinder(opts = {}) {
     let name = PLAYER ? (LS.get(NK) || '') : 'Max Muster';
     el.classList.add('cert-dlg');
     const draw = () => { $('.cert-body', el).innerHTML = certView(certData(name)); };
-    el.innerHTML = `<header><b>★ ${PLAYER ? 'Dein Zertifikat' : 'Zertifikat – Muster'}</b><button data-pdf="1">⬇︎ PDF speichern</button><button class="ok" data-x="ok">Schließen</button></header>
+    el.innerHTML = `<header><b>★ ${doc.cert.need === 'immer' ? (PLAYER ? 'Dein Nachweis' : 'Nachweis – Muster') : (PLAYER ? 'Dein Zertifikat' : 'Zertifikat – Muster')}</b><button data-pdf="1">⬇︎ PDF speichern</button><button class="ok" data-x="ok">Schließen</button></header>
       <div class="ed-form"><label>Dein Name<input type="text" id="certName" value="${esc(name)}" placeholder="Vor- und Nachname" autocomplete="name"></label></div>
       <div class="cert-body"></div>
       <div class="ed-form"><span class="help">${PLAYER ? 'Das PDF entsteht direkt hier im Browser. Lade es danach z. B. in Moodle hoch.' : 'So sieht das Zertifikat für Schüler aus (mit Musterwerten). Das PDF entsteht bei ihnen direkt im Browser.'} Die Zeit zählt nur, solange der Lernpfad offen ist und benutzt wird. Der Prüfcode ändert sich, wenn Name, Ergebnis, Zeit oder Datum nachträglich verändert werden – prüfen kannst du ihn im Editor unter ⋯ → „Zertifikat prüfen“.</span></div>`;
