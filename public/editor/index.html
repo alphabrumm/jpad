@@ -42,7 +42,7 @@ const sample = () => ({
       { type: 'lock', after: 'j1' },
       { type: 'info', kind: 'merke', title: 'Merke', html: 'Methoden rufst du mit <code>objekt.methode()</code> auf.' } ] },
   ].map((s, i) => ({ id: 's' + i, check: false, ...s, blocks: s.blocks.map((b, j) => ({ id: b.id || `b${i}${j}`, ...b })) })),
-  cert: { on: true, need: 'alle', pct: 80, text: 'hat den Lernpfad erfolgreich bearbeitet.', show: { zeit: true, tipps: true, quiz: true, xp: true } },
+  cert: { on: true, need: 'immer', pct: 80, text: 'hat den Lernpfad mit folgendem Ergebnis bearbeitet:', show: { zeit: true, tipps: true, quiz: true, xp: true } },
 });
 
 let host = {};
