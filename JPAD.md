@@ -300,3 +300,7 @@ GNU GPL v3, wie die Online-IDE.
 - Nov. 2026: Die alten, nicht PathFinder-kompatiblen Lernpfade in learn/10 (JPad-/Lernpfad-Schafkonstruktor, -Vogelflug, -Vererbung)
   sind entfernt; es gelten die Fassungen „…-PathFinder“. Alte JCodes (z. B. LPANT) führen damit ins Leere. learn/demo/Lernpfad-Bello.html
   bleibt, weil JPad ihn als Demo öffnet. „Die Herde“: Nachweis immer erstellbar (cert.need „immer“).
+- **„Sternenhimmel“ – Arrays, Alternative zur Herde** (`learn/10/JPad-Sternenhimmel.json`, `Lernpfad-Sternenhimmel.html`):
+  aus dem früheren HTML-Lernpfad in PathFinder (PathFinder-Design, Palette „Nacht“, Hell/Dunkel wie das Gerät) umgebaut.
+  Projekt enthält Hauptprogramm.java und Stern.java. Die Schubladen-Werkstatt (Schritt für Schritt) steckt als kleine Seite
+  im HTML-Baustein (iframe srcdoc), weil HTML-Bausteine sonst keine Skripte ausführen.
