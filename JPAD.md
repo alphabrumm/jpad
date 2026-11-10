@@ -296,4 +296,7 @@ GNU GPL v3, wie die Online-IDE.
   45-Minuten-Wiederholung in PathFinder (Form Challenge) mit sehr wenig Hilfe: Datentypen, Klasse Rakete mit Attributen,
   Konstruktor mit this, Methode pruefen() mit if – else, Countdown mit while, fliegen() mit while und if, Bonus tanken(Integer).
   Sechs Programmier-Aufgaben prüft JPad automatisch; Musterlösungen für Schüler verborgen. Hilfe-Links stecken als Tipp 1 in jeder
-  Programmier-Aufgabe (zählt im Nachweis), sonst als Klappbox; Links auf passende Stationen in Bello, Schaf-Konstruktor und Vogelflug (`…/Lernpfad-X.html#sN`, neues Fenster). Nachweis immer erstellbar (cert.need „immer“), zeigt den Stand.
+  Programmier-Aufgabe (zählt im Nachweis), sonst als Klappbox; Links auf passende Stationen der PathFinder-Fassungen von Bello, Schaf-Konstruktor und Vogelflug (`…/Lernpfad-X-PathFinder.html#sN`, neues Fenster). Nachweis immer erstellbar (cert.need „immer“), zeigt den Stand.
+- Nov. 2026: Die alten, nicht PathFinder-kompatiblen Lernpfade in learn/10 (JPad-/Lernpfad-Schafkonstruktor, -Vogelflug, -Vererbung)
+  sind entfernt; es gelten die Fassungen „…-PathFinder“. Alte JCodes (z. B. LPANT) führen damit ins Leere. learn/demo/Lernpfad-Bello.html
+  bleibt, weil JPad ihn als Demo öffnet. „Die Herde“: Nachweis immer erstellbar (cert.need „immer“).
