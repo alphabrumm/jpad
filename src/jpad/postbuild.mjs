@@ -15,7 +15,7 @@ if (existsSync("vendor/pathfinder/core")) {
 if (existsSync(`${out}/editor/index.html`) && existsSync(`${out}/pathfinder/core/pathfinder.js`)) {
     const { createHash } = await import("crypto");
     const h = createHash("sha256");
-    for (const f of ["pathfinder/core/pathfinder.js", "pathfinder/core/pathfinder.css", "pathfinder/core/pftext.js", "pathfinder/core/pfskin.js", "editor/jpad-plugin.js", "editor/index.html"])
+    for (const f of ["pathfinder/core/pathfinder.js", "pathfinder/core/pathfinder.css", "pathfinder/core/pftext.js", "pathfinder/core/pfskin.js", "pathfinder/core/pfexam.js", "editor/jpad-plugin.js", "editor/index.html"])
         if (existsSync(`${out}/${f}`)) h.update(readFileSync(`${out}/${f}`));
     const v = h.digest("hex").slice(0, 10);
     const ei = `${out}/editor/index.html`;
