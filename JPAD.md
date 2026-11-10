@@ -292,3 +292,8 @@ GNU GPL v3, wie die Online-IDE.
 - Umschließen (Klasse, Methode, if …) auch mit gewöhnlicher Maus-/Touch-Auswahl; public? wirkt auf alle ausgewählten Deklarationszeilen (Klassen nie private), auch im Markier-Modus sichtbar.
 - Vorschlagsliste: nie breiter als der sichtbare Editor (hochkant mit Bausteinleiste), klappt nicht nach oben, Code scrollt hoch, wenn sie zur Hälfte verdeckt wäre; Vorschläge nach dem Punkt auch, wenn die Anweisung mitten im Code noch unvollständig ist (vogel.ro… in while).
 - Touch: Beschreibung eines Vorschlags erst nach langem Drücken (450 ms) auf den Eintrag; kurzes Tippen übernimmt, Weitertippen schließt sie.
+- **„Mission Raketenstart“ – Übung** (`learn/10/JPad-Raketenstart.json`, JCode VSDL2; `Lernpfad-Raketenstart.html`, JCode D53FV):
+  45-Minuten-Wiederholung in PathFinder (Form Challenge) mit sehr wenig Hilfe: Datentypen, Klasse Rakete mit Attributen,
+  Konstruktor mit this, Methode pruefen() mit if – else, Countdown mit while, fliegen() mit while und if, Bonus tanken(Integer).
+  Sechs Programmier-Aufgaben prüft JPad automatisch; Musterlösungen für Schüler verborgen. Unter jeder Station „Hängst du fest?“
+  mit Links auf passende Stationen in Bello, Schaf-Konstruktor und Vogelflug (`…/Lernpfad-X.html#sN`, neues Fenster).
