@@ -10,13 +10,15 @@
   <section class="lpwrap" aria-label="Lernpfad">
     <div class="ed-bar" id="edBar">
       <span class="pf-brand"><img src="../pathfinder/icon.svg" alt=""><span>PathFinder</span></span>
+      <span class="ed-sep"></span>
       <span class="ed-seg" id="modeSeg"><button data-mode="edit" aria-pressed="true">✎ Bearbeiten</button><button data-mode="preview">▶ Vorschau</button></span>
+      <span class="ed-seg" id="viewSeg" title="Alle Stationen untereinander zeigen oder nur die aktuelle"><button data-view="all" aria-pressed="true">Alle<span class="t"> Stationen</span></button><button data-view="one" aria-pressed="false">Eine<span class="t"> Station</span></button></span>
+      <span class="ed-sep"></span>
       <button class="ed-btn" id="bUndo" title="Rückgängig (⌘Z)" aria-label="Rückgängig">↶</button>
       <button class="ed-btn" id="bRedo" title="Wiederholen (⇧⌘Z)" aria-label="Wiederholen">↷</button>
-      <button class="ed-btn" id="bSingle" title="Nur aktuelle Station zeigen" aria-pressed="false">◧<span class="t"> Station</span></button>
-      <button class="ed-btn" id="bDesign" title="Design">🎨<span class="t"> Design</span></button>
       <span class="sp"></span>
       <span class="ed-saved" id="saved"></span>
+      <button class="ed-btn ed-lbl" id="bDesign" title="Lernpfad einstellen: Farben, Schrift, Kopf"><svg class="ki-ico" viewBox="0 0 24 24" width="1.15em" height="1.15em" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6a7.8 7.8 0 0 1 1.9 1.1l2.5-.9 1.7 2.9-2 1.7a7.9 7.9 0 0 1 0 2.2l2 1.7-1.7 2.9-2.5-.9a7.8 7.8 0 0 1-1.9 1.1l-.5 2.6h-3.4l-.5-2.6a7.8 7.8 0 0 1-1.9-1.1l-2.5.9-1.7-2.9 2-1.7a7.9 7.9 0 0 1 0-2.2l-2-1.7 1.7-2.9 2.5.9a7.8 7.8 0 0 1 1.9-1.1zM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/></svg><span> Lernpfad</span></button>
       <button class="ed-btn" id="bOpen" title="Lernpfad öffnen oder neu anlegen">📂<span class="t"> Öffnen</span></button>
       <button class="ed-btn" id="bMore" title="Mehr">⋯</button>
     </div>
