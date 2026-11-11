@@ -80,7 +80,7 @@ export const jpadPlugin = {
   blocks: {
     jtask: {
       n: 'Programmier-Aufgabe', ic: '☕', g: 'JPad', h: 'JPad prüft die Ausgabe des Programms (und Pflicht-Code)', openForm: true,
-      make: () => ({ title: '', html: '', start: '', expect: '', compare: 'enthaelt', needs: [], xp: 20, tips: [], solution: '', img: '' }),
+      make: () => ({ title: '', html: '', start: '', expect: '', compare: 'enthaelt', needs: [], xp: 20, tips: [], solution: '', solHide: true, img: '' }),
       check: () => true,
       label: b => b.title || 'die Programmier-Aufgabe',
       render(b, x) {
@@ -157,9 +157,10 @@ public class Hund { … }            (optional: Startcode, wird in JPad als Date
         const start = S.code.find(c => !/^(loesung|losung|solution)$/.test(c.tag)), sol = S.code.find(c => /^(loesung|losung|solution)$/.test(c.tag));
         const expect = (S.one('ausgabe') || '').replace(/\\n/g, '\n');
         if (!expect && !S.all('muss').length) H.warn(S.line, `Programmier-Aufgabe „${S.title}“: ohne „Ausgabe:“ oder „Muss:“ kann JPad nichts prüfen.`);
-        return { type: 'jtask', title: S.title, html: H.md(S.body), start: start ? start.code : '', expect, compare: /gleich|genau/i.test(S.one('vergleich') || '') ? 'gleich' : 'enthaelt', needs: S.all('muss'),
+        const b = { type: 'jtask', title: S.title, html: H.md(S.body), start: start ? start.code : '', expect, compare: /gleich|genau/i.test(S.one('vergleich') || '') ? 'gleich' : 'enthaelt', needs: S.all('muss'),
           xp: S.num('xp', 20), tips: S.all('tipp').map(H.inline || (t => t)), ...(S.hid?.('tipp').some(Boolean) ? { tipsHide: S.hid('tipp') } : {}),
           solution: sol ? `<pre>${esc(sol.code)}</pre>` : (S.one('loesung') ? (H.inline || (t => t))(S.one('loesung')) : ''), ...(S.hid?.('loesung')[0] ? { solHide: true } : {}), img: '' };
+        return H.hideDefaults ? H.hideDefaults(b, S) : b; // Standard: Lösung und letzter Tipp verborgen
       },
       toText(b, { md }) {
         const solCode = /^<pre>([\s\S]*)<\/pre>$/.exec(b.solution || '');
