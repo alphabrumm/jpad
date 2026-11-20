@@ -35,7 +35,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           (cd dist-jpad && zip -qr "$RUNNER_TEMP/JPad-webspace.zip" .)
-          mkdir -p "$RUNNER_TEMP/wb" && cp "$RUNNER_TEMP/JPad-webspace.zip" "$RUNNER_TEMP/wb/"
+          (cd dist-jpad-pruefung && zip -qr "$RUNNER_TEMP/JPad-pruefung.zip" .)
+          mkdir -p "$RUNNER_TEMP/wb" && cp "$RUNNER_TEMP/JPad-webspace.zip" "$RUNNER_TEMP/JPad-pruefung.zip" "$RUNNER_TEMP/wb/"
           cd "$RUNNER_TEMP/wb"
           echo "${GITHUB_SHA}" > COMMIT.txt
           git init -q -b webspace-build
