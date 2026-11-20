@@ -135,6 +135,270 @@ String name = Dolli;       // falsch: Text braucht " "`)}
 <div class="ok">Tipp: Für Ja/Nein-Fragen wie „ist startklar?“ oder „ist geschoren?“ nimmst du immer <code>Boolean</code>. Der Name beginnt oft mit <code>ist…</code>.</div>
 ${links([['bello', 2, 'Welcher Datentyp passt?']])}` },
 
+{ id: 'ausgabe', i: '🖨', t: 'Ausgabe: println und +', c: ['#e2f7ec', '#6cc897', '#17723f'],
+  tile: `<p class="m"><b>+</b> klebt Text und Werte zusammen. Leerzeichen stehen <b>in</b> den Anführungszeichen.</p>
+${pre(`String name = "Dolli";
+Integer alter = 3;
+println(name + " ist " + alter
+        + " Jahre alt.");`)}
+<p class="out">Ausgabe: <code>Dolli ist 3 Jahre alt.</code></p>`,
+  pop: `<h4>Merke</h4>
+<p><code>println(…)</code> schreibt etwas in die Ausgabe und beginnt danach eine neue Zeile. <code>print(…)</code> bleibt in derselben Zeile.</p>
+${pre(`print("Mäh");
+print("Mäh");
+println("!");
+println("Ende");`)}
+${out('MähMäh!\nEnde')}
+<h4>Text und Werte verbinden</h4>
+${pre(`String name = "Bello";
+Integer alter = 3;
+println(name + " ist " + alter + " Jahre alt.");`)}
+${out('Bello ist 3 Jahre alt.')}
+<h4>Später mit Objekten</h4>
+<p>Die Werte kommen dann aus dem Objekt – mit dem Punkt:</p>
+${pre(`println(h1.name + " ist " + h1.alter + " Jahre alt.");`)}
+<div class="warn">Genau hinschauen! In der Prüfung muss die Ausgabe <b>genau</b> stimmen: Leerzeichen, Punkt am Ende, Groß- und Kleinschreibung. <code>name + "ist"</code> ergibt <code>Belloist</code>.</div>
+${links([['bello', 6, 'Die Methode bauen (println)']])}` },
+
+{ id: 'ifelse', i: '🔀', t: 'if – else', c: ['#ffe2dd', '#ef8a78', '#a5321c'],
+  tile: `<p class="m">Ist die Bedingung <b>wahr</b>, läuft der if-Teil, <b>sonst</b> der else-Teil.</p>
+${pre(`if (istStubenrein == true) {
+   println("Bello darf rein.");
+} else {
+   println("Bello muss raus.");
+}`)}`,
+  pop: `<h4>Merke</h4>
+<p>Die Bedingung steht in runden Klammern. Es läuft <b>genau einer</b> der beiden Teile.</p>
+${pre(`Boolean istStubenrein = false;
+if (istStubenrein == true) {
+   println("Bello darf rein.");
+} else {
+   println("Bello muss raus.");
+}`)}
+${out('Bello muss raus.')}
+<h4>Später in einer Methode der Klasse Hund</h4>
+${pre(`class Hund {
+   String name;
+   Boolean istStubenrein;
+
+   void kannAlleineBleiben() {
+      if (istStubenrein == true) {
+         println(name + " kann alleine bleiben.");
+      } else {
+         println(name + " braucht Gesellschaft.");
+      }
+   }
+}`)}
+${pre(`// Hauptprogramm: Bello ist stubenrein, Cara nicht
+h1.kannAlleineBleiben();
+h2.kannAlleineBleiben();`)}
+${out('Bello kann alleine bleiben.\nCara braucht Gesellschaft.')}
+<h4>Im if-Teil darf mehr stehen</h4>
+${pre(`Integer alter = 1;
+Boolean istErwachsen;
+if (alter >= 2) {
+   istErwachsen = true;
+   println("Dolli ist erwachsen.");
+} else {
+   istErwachsen = false;
+   println("Dolli ist ein Lamm.");
+}`)}
+<div class="warn">Vergleichen mit <b>==</b> (zwei Gleichheitszeichen). Ein einzelnes <b>=</b> speichert einen Wert.</div>
+${links([['bello', 6, 'Die Methode bauen (if)'], ['bello', 7, 'Schritt für Schritt im Diagramm']])}` },
+
+{ id: 'vergleich', i: '⚖️', t: 'Vergleiche', c: ['#fdf0ff', '#d58be6', '#7d2794'],
+  tile: `<p class="m">Achte auf <b>„mindestens“</b> und <b>„mehr als“</b>!</p>
+${pre(`futter >= 30   // mindestens 30
+futter > 30    // mehr als 30
+futter <= 30   // höchstens 30
+futter < 30    // weniger als 30
+futter == 30   // genau 30
+futter != 30   // nicht 30`)}`,
+  pop: `<h4>Merke</h4>
+<table><tr><th>in Worten</th><th>Code</th><th>30 erfüllt?</th></tr>
+<tr><td>mindestens 30</td><td><code>&gt;= 30</code></td><td>✓ ja</td></tr>
+<tr><td>mehr als 30</td><td><code>&gt; 30</code></td><td>✗ nein</td></tr>
+<tr><td>höchstens 30</td><td><code>&lt;= 30</code></td><td>✓ ja</td></tr>
+<tr><td>weniger als 30</td><td><code>&lt; 30</code></td><td>✗ nein</td></tr>
+<tr><td>genau 30</td><td><code>== 30</code></td><td>✓ ja</td></tr>
+<tr><td>nicht 30</td><td><code>!= 30</code></td><td>✗ nein</td></tr></table>
+${pre(`// Dolli darf auf die Weide, wenn sie mindestens 30 kg Futter hatte
+Integer futter = 30;
+if (futter >= 30) {
+   println("Dolli darf auf die Weide.");
+} else {
+   println("Dolli muss noch fressen.");
+}`)}
+<div class="ok">Probe mit dem Grenzwert: Was passiert bei <b>genau</b> 30? Bei „mindestens“ muss es klappen – also <code>&gt;=</code>.</div>
+${links([['bello', 6, 'Die Methode bauen (Bedingungen)']])}` },
+
+{ id: 'while', i: '🔁', t: 'while-Schleife', c: ['#e0f4ff', '#59b4e6', '#0b5d8c'],
+  tile: `<p class="m">Wiederholt den Rumpf, <b>solange</b> die Bedingung wahr ist. Im Rumpf muss sich etwas ändern!</p>
+${pre(`Integer zahl = 3;
+while (zahl > 0) {
+   println(zahl);
+   zahl = zahl - 1;
+}
+println("Alle Schafe da!");`)}`,
+  pop: `<h4>Merke</h4>
+<ol style="margin:4px 0;padding-left:20px"><li>Java prüft die Bedingung in den runden Klammern.</li><li>Ist sie wahr, läuft der Rumpf <code>{ … }</code> – danach geht es zurück zur Bedingung.</li><li>Ist sie falsch, macht das Programm <b>nach</b> der schließenden Klammer weiter.</li></ol>
+<h4>Schäfer Ulf zählt seine Schafe</h4>
+${pre(`Integer schaf = 1;
+while (schaf <= 4) {
+   println("Schaf Nummer " + schaf);
+   schaf = schaf + 1;
+}
+println("Alle Schafe im Stall!");`)}
+${out('Schaf Nummer 1\nSchaf Nummer 2\nSchaf Nummer 3\nSchaf Nummer 4\nAlle Schafe im Stall!')}
+<h4>Rückwärts zählen</h4>
+${pre(`Integer zahl = 3;
+while (zahl > 0) {
+   println(zahl);
+   zahl = zahl - 1;
+}
+println("Los!");`)}
+${out('3\n2\n1\nLos!')}
+<div class="warn">Vergisst du <code>zahl = zahl - 1;</code>, bleibt die Bedingung immer wahr – das Programm hört nie auf (Endlosschleife). Dann ■ Stopp drücken.</div>
+<div class="ok">Mit dem Knopf <b>Schritt</b> in JPad siehst du Zeile für Zeile, wie oft die Bedingung geprüft wird.</div>
+${links([['vogel', 4, 'Die while-Schleife'], ['vogel', 5, 'Zwölf Runden über den Himmel']])}` },
+
+{ id: 'whileif', i: '🐕', t: 'while + if', c: ['#fff0d6', '#efb24a', '#8a5200'],
+  tile: `<p class="m">Erst <b>entscheiden</b>, dann <b>wiederholen</b>: Nur ein fitter Hund rennt los.</p>
+${pre(`if (istFit == true) {
+   while (energie > 0) {
+      strecke = strecke + 100;
+      energie = energie - 10;
+   }
+}`)}`,
+  pop: `<h4>Merke</h4>
+<p>Schleifen und Entscheidungen lassen sich ineinander schachteln. Achte auf die <b>Klammern</b> – jede <code>{</code> braucht ihre <code>}</code>. Mit <b>Code formatieren</b> in JPad siehst du an den Einrückungen, was wozu gehört.</p>
+${pre(`Boolean istFit = true;
+Integer energie = 30;
+Integer strecke = 0;
+
+if (istFit == true) {
+   while (energie > 0) {
+      strecke = strecke + 100;
+      energie = energie - 10;
+   }
+   println("Bello rennt " + strecke + " Meter.");
+} else {
+   println("Bello bleibt im Körbchen.");
+}`)}
+${out('Bello rennt 300 Meter.')}
+<h4>Später als Methode der Klasse Hund</h4>
+${pre(`class Hund {
+   String name;
+   Integer energie;
+   Integer strecke;
+   Boolean istFit;
+
+   void rennen() {
+      if (istFit == true) {
+         while (energie > 0) {
+            strecke = strecke + 100;
+            energie = energie - 10;
+         }
+         println(name + " rennt " + strecke + " Meter.");
+      } else {
+         println(name + " bleibt im Körbchen.");
+      }
+   }
+}`)}
+${pre(`// Hauptprogramm: Bello hat 30 Energie und ist fit, Cara nicht
+h1.rennen();
+h2.rennen();`)}
+${out('Bello rennt 300 Meter.\nCara bleibt im Körbchen.')}
+<div class="ok">Die Ausgabe der Strecke steht <b>nach</b> der Schleife – sonst käme sie in jeder Runde.</div>
+${links([['vogel', 6, 'Solange noch Platz ist'], ['bello', 6, 'Die Methode bauen (if)']])}` },
+
+{ id: 'methode', i: '⚙️', t: 'Methoden', c: ['#dff6f8', '#5fc3cf', '#0d6873'],
+  tile: `<p class="m">Eine <b>Methode</b> fasst zusammengehörende Anweisungen unter einem <b>Namen</b> zusammen. <b>void</b> = gibt nichts zurück.</p>
+${pre(`void weidegang() {
+   println("Gatter auf");
+   println("Schafe raus");
+}`)}${pre(`weidegang();   // Aufruf`)}`,
+  pop: `<h4>Merke</h4>
+<p>Kommen dieselben Anweisungen öfter vor, packst du sie in eine <b>Methode</b> mit einem treffenden Namen. Danach genügt eine Zeile, um alles auszuführen – und ändern musst du es nur noch an einer Stelle.</p>
+<h4>1. Ohne Klassen: Ablauf auslagern</h4>
+<p>Schäfer Ulf treibt seine Schafe jeden Tag auf die Weide – vorher stand alles doppelt da:</p>
+${pre(`// vorher: dreimal dieselben Zeilen …
+println("Ulf öffnet das Gatter.");
+println("Die Schafe laufen auf die Weide.");
+println("Ulf schließt das Gatter.");
+println("Ulf öffnet das Gatter.");
+// …`)}
+${pre(`// nachher: einmal als Methode im Hauptprogramm …
+void weidegang() {
+   println("Ulf öffnet das Gatter.");
+   println("Die Schafe laufen auf die Weide.");
+   println("Ulf schließt das Gatter.");
+}
+
+// … und so oft aufrufen, wie du willst
+weidegang();   // Montag
+weidegang();   // Dienstag`)}
+<ul><li>Methodenkopf: <code>void</code>, Name, runde Klammern, dann der Rumpf in <code>{ }</code>.</li>
+<li>Aufruf: Name, Klammern, Strichpunkt.</li></ul>
+<h4>2. Mit Klassen und Objekten</h4>
+<p>Meist gehört eine Methode zu einer <b>Klasse</b> – sie ist etwas, das jedes Objekt <b>tun</b> kann. Dann steht sie im Reiter der Klasse unter den Attributen und benutzt die Attribute des Objekts:</p>
+${pre(`class Schaf {
+   String name;
+   String schnarchGeraeusch;
+
+   void schlafen() {
+      println(name + " schnarcht: " + schnarchGeraeusch);
+   }
+}`)}
+${pre(`// Hauptprogramm: Objekt, Punkt, Methode
+Schaf s1 = new Schaf("Dolli", "Mpfhh");
+Schaf s3 = new Schaf("Helga", "Pffft");
+s1.schlafen();
+s3.schlafen();`)}
+${out('Dolli schnarcht: Mpfhh\nHelga schnarcht: Pffft')}
+<p style="font-size:12.5px;color:#5a5f74">(Hier hat die Klasse einen Konstruktor mit zwei Parametern: Name und Schnarchgeräusch – siehe Baustein Konstruktor.)</p>
+${links([['bello', 5, 'Was ist eine Methode?'], ['bello', 6, 'Die Methode bauen']])}` },
+
+{ id: 'parameter', i: '📦', t: 'Parameter', c: ['#f1f7d9', '#a9c94a', '#4c6a05'],
+  tile: `<p class="m">Ein <b>Parameter</b> ist eine Schachtel für einen Wert, den man beim Aufruf einer Methode in <b>runden Klammern</b> mitgibt.</p>
+${pre(`void begruessen(String name) {
+   println("Hallo " + name);
+}
+begruessen("Ulf"); // Hallo Ulf`)}`,
+  pop: `<h4>Merke</h4>
+<p>In den Klammern der Methode steht <b>Typ und Name</b> des Parameters. Beim Aufruf schreibst du den <b>Wert</b> hinein – er landet in der Schachtel und gilt nur in dieser Methode.</p>
+<h4>Ohne Klassen</h4>
+${pre(`void begruessen(String name) {
+   println("Hallo " + name + "!");
+}
+
+void zaehlen(Integer bis) {
+   Integer i = 1;
+   while (i <= bis) {
+      println(i);
+      i = i + 1;
+   }
+}
+
+begruessen("Dolli");
+begruessen("Ulf");
+zaehlen(3);`)}
+${out('Hallo Dolli!\nHallo Ulf!\n1\n2\n3')}
+<h4>Mit Klassen: Methoden eines Schafs</h4>
+${pre(`void umbenennen(String neuerName) {
+   name = neuerName;
+}
+
+void fuettern(Integer kilo) {
+   futter = futter + kilo;   // zum alten Wert dazu
+}`)}
+${pre(`// Hauptprogramm
+s1.umbenennen("Dolly");
+s1.fuettern(5);
+s1.fuettern(3);     // jetzt 8 kg mehr Futter`)}
+<div class="ok"><code>futter = futter + kilo;</code> liest den alten Wert, rechnet dazu und speichert das Ergebnis wieder im Attribut.</div>
+${links([['schaf', 3, 'Parameter: Werte in Schachteln']])}` },
+
 { id: 'klasse', i: '📐', t: 'Klasse & Attribute', c: ['#e3f0ff', '#7fb0ef', '#1b4f9c'],
   tile: `<p class="m">Die <b>Klasse</b> ist der Bauplan. <b>Attribute</b> sind die Eigenschaften, die jedes Objekt bekommt.</p>
 <div class="row"><div class="uml" style="flex:0 0 auto"><div class="n">Schaf</div><div class="a">name: String<br>farbe: String<br>alter: Integer</div></div>
@@ -176,27 +440,6 @@ println(s2.name);   // Gunthard`)}
 <div class="row" style="gap:10px;flex-wrap:wrap"><div class="obj"><div class="n">s1 : Schaf</div><div class="a">name = "Dolli"</div></div><div class="obj"><div class="n">s2 : Schaf</div><div class="a">name = "Gunthard"</div></div></div>
 <div class="ok">Der Punkt heißt: „von diesem Objekt“. <code>s1.name</code> = der Name von s1.</div>
 ${links([['bello', 4, 'Bello und Cara werden gebaut'], ['schaf', 1, 'Ganz schön viel Tipparbeit']])}` },
-
-{ id: 'ausgabe', i: '🖨', t: 'Ausgabe: println und +', c: ['#e2f7ec', '#6cc897', '#17723f'],
-  tile: `<p class="m"><b>+</b> klebt Text und Werte zusammen. Leerzeichen stehen <b>in</b> den Anführungszeichen.</p>
-${pre(`println(s1.name + " ist " +
-   s1.alter + " Jahre alt.");`)}
-<p class="out">Ausgabe: <code>Dolli ist 3 Jahre alt.</code></p>`,
-  pop: `<h4>Merke</h4>
-<p><code>println(…)</code> schreibt etwas in die Ausgabe und beginnt danach eine neue Zeile. <code>print(…)</code> bleibt in derselben Zeile.</p>
-${pre(`print("Mäh");
-print("Mäh");
-println("!");
-println("Ende");`)}
-${out('MähMäh!\nEnde')}
-<h4>Text und Werte verbinden</h4>
-${pre(`Hund h1 = new Hund();
-h1.name = "Bello";
-h1.alter = 3;
-println(h1.name + " ist " + h1.alter + " Jahre alt.");`)}
-${out('Bello ist 3 Jahre alt.')}
-<div class="warn">Genau hinschauen! In der Prüfung muss die Ausgabe <b>genau</b> stimmen: Leerzeichen, Punkt am Ende, Groß- und Kleinschreibung. <code>name + "ist"</code> ergibt <code>Belloist</code>.</div>
-${links([['bello', 6, 'Die Methode bauen (println)']])}` },
 
 { id: 'konstruktor', i: '🏗', t: 'Konstruktor', c: ['#efe6ff', '#a98be6', '#5b2fb0'],
   tile: `<p class="m">Heißt wie die Klasse, <b>ohne void</b>, läuft bei <b>new</b>.</p>
@@ -248,178 +491,6 @@ ${pre(`Schaf(String name, String farbe) {
 <div class="ok">Eselsbrücke: <b>this.</b> zeigt auf das Schaf, das gerade gebaut wird. Links vom = steht, <b>wo</b> der Wert hin soll (das Attribut), rechts, <b>was</b> hinein soll (der Parameter).</div>
 ${links([['schaf', 6, 'n, f, farb, farbe_ … ?'], ['schaf', 7, 'this.farbe und farbe']])}` },
 
-{ id: 'methode', i: '⚙️', t: 'Methoden', c: ['#dff6f8', '#5fc3cf', '#0d6873'],
-  tile: `<p class="m">Eine <b>Methode</b> ist etwas, das ein Objekt <b>tun</b> kann. <b>void</b> = gibt nichts zurück.</p>
-${pre(`void maehen() {
-   println(name + " sagt Mäh.");
-}`)}${pre(`s1.maehen();   // Aufruf`)}`,
-  pop: `<h4>Merke</h4>
-<ul><li>Die Methode steht <b>in der Klasse</b> (im Reiter <code>Schaf</code>), unter den Attributen.</li>
-<li>Aufgerufen wird sie im <b>Hauptprogramm</b>: Objekt, Punkt, Name, Klammern, Strichpunkt.</li>
-<li>In der Methode kannst du die Attribute direkt benutzen – jedes Objekt nimmt seine eigenen Werte.</li></ul>
-${pre(`class Schaf {
-   String name;
-   String schnarchGeraeusch;
-
-   void schlafen() {
-      println(name + " schnarcht: " + schnarchGeraeusch);
-   }
-}`)}
-${pre(`// Hauptprogramm
-Schaf s1 = new Schaf("Dolli", "Mpfhh");
-Schaf s3 = new Schaf("Helga", "Pffft");
-s1.schlafen();
-s3.schlafen();`)}
-${out('Dolli schnarcht: Mpfhh\nHelga schnarcht: Pffft')}
-<p style="font-size:12.5px;color:#5a5f74">(Hier hat die Klasse einen Konstruktor mit zwei Parametern: Name und Schnarchgeräusch.)</p>
-${links([['bello', 5, 'Was ist eine Methode?'], ['bello', 6, 'Die Methode bauen']])}` },
-
-{ id: 'parameter', i: '📦', t: 'Parameter', c: ['#f1f7d9', '#a9c94a', '#4c6a05'],
-  tile: `<p class="m">Ein <b>Parameter</b> ist eine Schachtel für einen Wert, den man beim Aufruf einer Methode in <b>runden Klammern</b> mitgibt.</p>
-${pre(`void fuettern(Integer kilo) {
-   futter = futter + kilo;
-}`)}${pre(`s1.fuettern(5);   // kilo = 5`)}`,
-  pop: `<h4>Merke</h4>
-<p>In den Klammern der Methode steht <b>Typ und Name</b> des Parameters. Beim Aufruf schreibst du den <b>Wert</b> hinein – er landet in der Schachtel und gilt nur in dieser Methode.</p>
-${pre(`void umbenennen(String neuerName) {
-   name = neuerName;
-}
-
-void fuettern(Integer kilo) {
-   futter = futter + kilo;   // zum alten Wert dazu
-}`)}
-${pre(`// Hauptprogramm
-s1.umbenennen("Dolly");
-s1.fuettern(5);
-s1.fuettern(3);     // jetzt 8 kg mehr Futter`)}
-<div class="ok"><code>futter = futter + kilo;</code> liest den alten Wert, rechnet dazu und speichert das Ergebnis wieder im Attribut.</div>
-${links([['schaf', 3, 'Parameter: Werte in Schachteln']])}` },
-
-{ id: 'ifelse', i: '🔀', t: 'if – else', c: ['#ffe2dd', '#ef8a78', '#a5321c'],
-  tile: `<p class="m">Ist die Bedingung <b>wahr</b>, läuft der if-Teil, <b>sonst</b> der else-Teil.</p>
-${pre(`if (istStubenrein == true) {
-   println(name + " darf rein.");
-} else {
-   println(name + " muss raus.");
-}`)}`,
-  pop: `<h4>Merke</h4>
-<p>Die Bedingung steht in runden Klammern. Es läuft <b>genau einer</b> der beiden Teile.</p>
-${pre(`class Hund {
-   String name;
-   Boolean istStubenrein;
-
-   void kannAlleineBleiben() {
-      if (istStubenrein == true) {
-         println(name + " kann alleine bleiben.");
-      } else {
-         println(name + " braucht Gesellschaft.");
-      }
-   }
-}`)}
-${pre(`// Hauptprogramm: Bello ist stubenrein, Cara nicht
-h1.kannAlleineBleiben();
-h2.kannAlleineBleiben();`)}
-${out('Bello kann alleine bleiben.\nCara braucht Gesellschaft.')}
-<h4>Im if-Teil darf mehr stehen</h4>
-${pre(`if (alter >= 2) {
-   istErwachsen = true;
-   println(name + " ist erwachsen.");
-} else {
-   istErwachsen = false;
-   println(name + " ist ein Lamm.");
-}`)}
-<div class="warn">Vergleichen mit <b>==</b> (zwei Gleichheitszeichen). Ein einzelnes <b>=</b> speichert einen Wert.</div>
-${links([['bello', 6, 'Die Methode bauen (if)'], ['bello', 7, 'Schritt für Schritt im Diagramm']])}` },
-
-{ id: 'vergleich', i: '⚖️', t: 'Vergleiche', c: ['#fdf0ff', '#d58be6', '#7d2794'],
-  tile: `<p class="m">Achte auf <b>„mindestens“</b> und <b>„mehr als“</b>!</p>
-${pre(`futter >= 30   // mindestens 30
-futter > 30    // mehr als 30
-futter <= 30   // höchstens 30
-futter < 30    // weniger als 30
-futter == 30   // genau 30
-futter != 30   // nicht 30`)}`,
-  pop: `<h4>Merke</h4>
-<table><tr><th>in Worten</th><th>Code</th><th>30 erfüllt?</th></tr>
-<tr><td>mindestens 30</td><td><code>&gt;= 30</code></td><td>✓ ja</td></tr>
-<tr><td>mehr als 30</td><td><code>&gt; 30</code></td><td>✗ nein</td></tr>
-<tr><td>höchstens 30</td><td><code>&lt;= 30</code></td><td>✓ ja</td></tr>
-<tr><td>weniger als 30</td><td><code>&lt; 30</code></td><td>✗ nein</td></tr>
-<tr><td>genau 30</td><td><code>== 30</code></td><td>✓ ja</td></tr>
-<tr><td>nicht 30</td><td><code>!= 30</code></td><td>✗ nein</td></tr></table>
-${pre(`// Das Schaf darf auf die Weide, wenn es mindestens 30 kg Futter hat
-if (futter >= 30) {
-   println(name + " darf auf die Weide.");
-} else {
-   println(name + " muss noch fressen.");
-}`)}
-<div class="ok">Probe mit dem Grenzwert: Was passiert bei <b>genau</b> 30? Bei „mindestens“ muss es klappen – also <code>&gt;=</code>.</div>
-${links([['bello', 6, 'Die Methode bauen (Bedingungen)']])}` },
-
-{ id: 'while', i: '🔁', t: 'while-Schleife', c: ['#e0f4ff', '#59b4e6', '#0b5d8c'],
-  tile: `<p class="m">Wiederholt den Rumpf, <b>solange</b> die Bedingung wahr ist. Im Rumpf muss sich etwas ändern!</p>
-${pre(`Integer zahl = 3;
-while (zahl > 0) {
-   println(zahl);
-   zahl = zahl - 1;
-}
-println("Alle Schafe da!");`)}`,
-  pop: `<h4>Merke</h4>
-<ol style="margin:4px 0;padding-left:20px"><li>Java prüft die Bedingung in den runden Klammern.</li><li>Ist sie wahr, läuft der Rumpf <code>{ … }</code> – danach geht es zurück zur Bedingung.</li><li>Ist sie falsch, macht das Programm <b>nach</b> der schließenden Klammer weiter.</li></ol>
-<h4>Schäfer Ulf zählt seine Schafe</h4>
-${pre(`Integer schaf = 1;
-while (schaf <= 4) {
-   println("Schaf Nummer " + schaf);
-   schaf = schaf + 1;
-}
-println("Alle Schafe im Stall!");`)}
-${out('Schaf Nummer 1\nSchaf Nummer 2\nSchaf Nummer 3\nSchaf Nummer 4\nAlle Schafe im Stall!')}
-<h4>Rückwärts zählen</h4>
-${pre(`Integer zahl = 3;
-while (zahl > 0) {
-   println(zahl);
-   zahl = zahl - 1;
-}
-println("Los!");`)}
-${out('3\n2\n1\nLos!')}
-<div class="warn">Vergisst du <code>zahl = zahl - 1;</code>, bleibt die Bedingung immer wahr – das Programm hört nie auf (Endlosschleife). Dann ■ Stopp drücken.</div>
-<div class="ok">Mit dem Knopf <b>Schritt</b> in JPad siehst du Zeile für Zeile, wie oft die Bedingung geprüft wird.</div>
-${links([['vogel', 4, 'Die while-Schleife'], ['vogel', 5, 'Zwölf Runden über den Himmel']])}` },
-
-{ id: 'whileif', i: '🐕', t: 'while + if', c: ['#fff0d6', '#efb24a', '#8a5200'],
-  tile: `<p class="m">In der Methode <b>rennen()</b>: erst <b>entscheiden</b>, dann <b>wiederholen</b>.</p>
-${pre(`if (istFit == true) {
-   while (energie > 0) {
-      strecke = strecke + 100;
-      energie = energie - 10;
-   }
-}`)}`,
-  pop: `<h4>Merke</h4>
-<p>Schleifen und Entscheidungen lassen sich ineinander schachteln. Achte auf die <b>Klammern</b> – jede <code>{</code> braucht ihre <code>}</code>. Mit <b>Code formatieren</b> in JPad siehst du an den Einrückungen, was wozu gehört.</p>
-${pre(`class Hund {
-   String name;
-   Integer energie;
-   Integer strecke;
-   Boolean istFit;
-
-   void rennen() {
-      if (istFit == true) {
-         while (energie > 0) {
-            strecke = strecke + 100;
-            energie = energie - 10;
-         }
-         println(name + " rennt " + strecke + " Meter.");
-      } else {
-         println(name + " bleibt im Körbchen.");
-      }
-   }
-}`)}
-${pre(`// Hauptprogramm: Bello hat 30 Energie und ist fit, Cara nicht
-h1.rennen();
-h2.rennen();`)}
-${out('Bello rennt 300 Meter.\nCara bleibt im Körbchen.')}
-<div class="ok">Die Ausgabe der Strecke steht <b>nach</b> der Schleife – sonst käme sie in jeder Runde.</div>
-${links([['vogel', 6, 'Solange noch Platz ist'], ['bello', 6, 'Die Methode bauen (if)']])}` },
 ];
 
 const BEGRIFFE = [['Klasse', 'Bauplan für viele Objekte'], ['Objekt', 'nach dem Bauplan gebautes Ding, z. B. s1'], ['Attribut', 'Eigenschaft, die jedes Objekt hat'], ['Methode', 'etwas, das ein Objekt tun kann'], ['Konstruktor', 'läuft automatisch bei new'], ['Parameter', 'Schachtel für einen mitgegebenen Wert'], ['this', 'dieses Objekt'], ['if – else', 'entscheidet zwischen zwei Wegen'], ['while', 'wiederholt, solange die Bedingung wahr ist']];
