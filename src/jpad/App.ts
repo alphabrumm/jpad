@@ -126,6 +126,18 @@ export class App {
     errorCount = 0;
     modifiedSaveTimer: any;
 
+    /** Prüfungsmodus (?pfapp): JPad läuft in einer Prüfung (Probe/PathFinder), siehe startPfApp() */
+    pfApp = false;
+    private pfTask: string | null = null;
+    private pfReadonly = false;
+    private pfOrigin: string | null = null;
+    private pfLast = "";
+    private pfTimer: any;
+    private pfReadyTimer: any;
+    private pfLoading = false;
+    /** nach jedem Programmlauf (Ausgabe mitgeschrieben in ensureLernpfadBridge) */
+    private onProgramEnd: ((output: string, error: boolean) => void) | null = null;
+
     constructor(root: HTMLElement) {
         this.root = root;
     }
@@ -141,7 +153,20 @@ export class App {
         await this.store.open();
         // Lehrkraft-Modus (?lehrkraft): gilt für diesen Tab, Parameter verschwindet aus der Adresszeile
         const startParams = new URLSearchParams(location.search);
-        const teacherStart = startParams.has("lehrkraft");
+        // Prüfungsmodus: nur eingebettet (iframe) – eigenes, verstecktes Arbeitsprojekt, der Stand kommt von der Prüfung
+        this.pfApp = startParams.has("pfapp") && window.parent !== window;
+        let pfBefore: string | null = null;
+        if (this.pfApp) {
+            pfBefore = this.store.getCurrentId();
+            let p = this.store.list().find(x => x.source == "pfapp");
+            if (!p) {
+                p = this.store.createInfo("Prüfung");
+                this.store.update(p.id, { source: "pfapp" });
+                await this.store.writeFiles(p.id, STARTER_FILES);
+            }
+            this.store.setCurrentId(p.id);
+        }
+        const teacherStart = !this.pfApp && startParams.has("lehrkraft");
         if (teacherStart) {
             try { sessionStorage.setItem("jpad.lehrkraft", "1"); } catch (e) { }
             startParams.delete("lehrkraft");
@@ -150,11 +175,13 @@ export class App {
         }
         // Allererster Start (noch kein Projekt, noch nie begrüßt): Demo-Lernpfad öffnen und Willkommen zeigen
         let firstRun = false;
-        try { firstRun = !teacherStart && !localStorage.getItem("jpadblox.welcomed") && this.store.list().length == 0; } catch (e) { }
-        let linkMessage = await this.openFromLink(firstRun && !/[?&](projekt|lernpfad)=/.test(location.search)
+        try { firstRun = !this.pfApp && !teacherStart && !localStorage.getItem("jpadblox.welcomed") && this.store.list().length == 0; } catch (e) { }
+        let linkMessage = this.pfApp ? undefined : await this.openFromLink(firstRun && !/[?&](projekt|lernpfad)=/.test(location.search)
             ? { projekt: null, lernpfad: "learn/demo/Lernpfad-Bello.html" } : undefined);
         if (firstRun) linkMessage = linkMessage?.error ? linkMessage : undefined;   // statt „geöffnet“ kommt das Willkommen
         this.project = this.store.ensureCurrent();
+        // Das Arbeitsprojekt der Prüfung wird nie zum „aktuellen Projekt“ von JPad außerhalb der Prüfung
+        if (this.pfApp && pfBefore && pfBefore != this.project.id) this.store.setCurrentId(pfBefore);
 
         this.buildShell();
         this.dialogs = new Dialogs(this.root);
@@ -269,6 +296,7 @@ export class App {
         if (linkMessage?.error) this.dialogs.alert({ title: "Lernpfad lässt sich nicht öffnen", text: linkMessage.error });
         else if (linkMessage?.info) this.toast(linkMessage.info, "check", 5000);
         if (teacherStart) this.openTeacherList();
+        if (this.pfApp) this.startPfApp();
 
         this.main.programControlButtons?.speedControl.setSpeedInStepsPerSecond(this.getSpeed());
 
@@ -1362,6 +1390,12 @@ export class App {
         const code = this.isTeacher ? this.store.list().find(p => p.id == this.project.id)?.jcode : undefined;
         this.el.jcodeBadge.hidden = !code;
         this.el.jcodeBadge.innerHTML = code ? `<span>JCode</span> <b>${code}</b>` : "";
+        if (this.pfApp) {
+            this.el.projectState.textContent = this.pfReadonly ? "nur ansehen – Änderungen werden nicht gespeichert" : "Prüfung – wird automatisch gespeichert";
+            this.root.classList.remove("is-unsaved");
+            this.alignBulbSoon();
+            return;
+        }
         const unsaved = this.project.modified > this.project.exported;
         this.el.projectState.textContent = unsaved
             ? (this.project.exported == 0 ? "noch nie als Datei gesichert" : "Änderungen nicht als Datei gesichert")
@@ -1371,6 +1405,7 @@ export class App {
     }
 
     markModified() {
+        if (this.pfApp) this.pfSchedule();
         this.project.modified = Date.now();
         clearTimeout(this.modifiedSaveTimer);
         this.modifiedSaveTimer = setTimeout(() => {
@@ -1395,7 +1430,7 @@ export class App {
         const ul = this.el.projectList;
         ul.innerHTML = "";
         const fmt = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" });
-        for (const p of this.store.list()) {
+        for (const p of this.store.list().filter(x => x.source != "pfapp")) {
             const li = document.createElement("li");
             const isCurrent = p.id == this.project.id;
             li.className = "jp-projectitem" + (isCurrent ? " is-current" : "");
@@ -1715,6 +1750,7 @@ export class App {
                 // Zeile „Ausführungszeit: …“ der Online-IDE gehört nicht zur Ausgabe des Programms
                 const output = buf.replace(/\n*(Ausführungszeit|Execution time):[^\n]*\n?$/, "").replace(/\n+$/, "\n");
                 this.postToLernpfad({ type: "jpad-executed", output: output.slice(0, 20000), error: state == SchedulerState.error, files: this.lpFiles() });
+                this.onProgramEnd?.(output.slice(0, 20000), state == SchedulerState.error);
             }
         });
     }
@@ -1754,6 +1790,113 @@ export class App {
             this.renderSettings();
             this.toast("Lernpfad ins Projekt übernommen – so sehen ihn die Schüler.", "check", 4000);
         }
+    }
+
+    // =====================================================================
+    // Prüfungsmodus (?pfapp): JPad als Werkzeug einer App-Aufgabe in Probe/PathFinder.
+    // Protokoll „pf-app“ (siehe JPAD.md und PathFinder core/pfapp.js):
+    //   JPad → Prüfung  {type:"pf-app", action:"ready", app:"jpad", v:1}  (jede Sekunde, bis „load“ kommt)
+    //   Prüfung → JPad  {action:"load", task, title, files:[{name,text}], readonly}
+    //   JPad → Prüfung  {action:"state", task, files, run?:{output,error}}  nach Änderungen und nach jedem Programmlauf
+    //   Prüfung → JPad  {action:"flush", req} → sofort „state“ mit req · {action:"stop"} → Programm anhalten
+    // =====================================================================
+
+    private startPfApp() {
+        this.root.dataset.pfapp = "1";
+        // Projekte, Dateien, Lernpfade und eigene Sprites gibt es hier nicht – die Prüfung hält den Stand
+        for (const k of ["newProjectBtn", "openFileBtn", "jcodeBtn", "saveFileBtn", "teacherBtn", "demoBtn", "lernpfadAddBtn", "lernpfadEditBtn",
+            "lernpfadRemoveBtn", "projectList", "saveBtn", "jcodeBadge", "userSpritesBtn"]) this.el[k]?.remove();
+        this.root.querySelectorAll(".jp-drawer-body > h2").forEach(h => { if (h.textContent == "Projekte") h.remove(); });
+        this.root.querySelectorAll(".jp-drawer-body .jp-menu-actions").forEach(g => { if (!g.querySelector("button")) g.remove(); });
+        this.el.projectBtn.setAttribute("disabled", "");
+        window.addEventListener("message", ev => this.onPfMessage(ev));
+        this.onProgramEnd = (output, error) => { if (this.pfTask != null) this.pfSend({ run: { output, error } }); };
+        const ready = () => { try { window.parent.postMessage({ type: "pf-app", action: "ready", app: "jpad", v: 1 }, "*"); } catch (e) { } };
+        ready();
+        this.pfReadyTimer = setInterval(() => { if (this.pfTask == null) ready(); else clearInterval(this.pfReadyTimer); }, 1000);
+        // Sicherheitsnetz: auch Änderungen ohne markModified (neue Datei, Umbenennen) kommen an
+        setInterval(() => this.pfSend(), 3000);
+    }
+
+    private pfFiles() {
+        return this.main.getFiles().map(f => ({ name: f.name.replace(/\.java$/, ""), text: f.getText() }));
+    }
+
+    private pfSchedule() {
+        clearTimeout(this.pfTimer);
+        this.pfTimer = setTimeout(() => this.pfSend(), 700);
+    }
+
+    /** Stand an die Prüfung melden – ohne Programmlauf nur, wenn sich etwas geändert hat */
+    private pfSend(extra: { run?: { output: string, error: boolean }, req?: string } = {}) {
+        if (this.pfTask == null || this.pfLoading || !this.pfOrigin) return;
+        if (this.pfReadonly) {
+            if (extra.req) try { window.parent.postMessage({ type: "pf-app", action: "state", task: this.pfTask, req: extra.req, files: [] }, this.pfOrigin); } catch (e) { }
+            return;
+        }
+        const files = this.pfFiles(), key = JSON.stringify(files);
+        if (!extra.run && !extra.req && key == this.pfLast) return;
+        this.pfLast = key;
+        clearTimeout(this.pfTimer);
+        try { window.parent.postMessage({ type: "pf-app", action: "state", task: this.pfTask, files, ...extra }, this.pfOrigin); } catch (e) { }
+    }
+
+    private onPfMessage(ev: MessageEvent) {
+        if (ev.source != window.parent) return;
+        const d = ev.data;
+        if (!d || d.type != "pf-app") return;
+        if (this.pfOrigin && ev.origin != this.pfOrigin) return;
+        if (d.action == "load") {
+            this.pfOrigin = ev.origin;
+            clearInterval(this.pfReadyTimer);
+            this.pfLoad(d);
+        } else if (d.action == "flush") {
+            this.main.flush();
+            this.pfSend({ req: String(d.req ?? "") });
+        } else if (d.action == "stop") {
+            this.pfStop();
+        }
+    }
+
+    private pfStop() {
+        const am = this.main.getActionManager();
+        try { if (am.isActive("interpreter.stop")) am.trigger("interpreter.stop"); } catch (e) { }
+    }
+
+    /** Aufgabe laden: Dateien der Prüfung übernehmen (gleichnamige Dateien werden ersetzt, übrige entfernt) */
+    private pfLoad(d: any) {
+        this.pfStop();
+        this.pfLoading = true;
+        try {
+            this.pfTask = String(d.task ?? "");
+            this.pfReadonly = !!d.readonly;
+            let files: { name: string, text: string }[] = (Array.isArray(d.files) ? d.files : []).slice(0, 40)
+                .map((f: any) => ({ name: String(f?.name ?? "").replace(/\.java$/i, "").replace(/[^\wÄÖÜäöüß]+/g, "") || "Hauptprogramm", text: String(f?.text ?? "") }));
+            if (files.length == 0) files = [{ name: "Hauptprogramm", text: "" }];
+            const keep = new Set<GUIFile>();
+            let first: GUIFile | undefined;
+            for (const w of files) {
+                const name = w.name + ".java";
+                let f = this.main.getFiles().find(x => !keep.has(x) && x.name.toLowerCase() == name.toLowerCase());
+                if (f) { this.editor.forgetFile(f); f.setText(w.text); f.setSaved(false); }
+                else f = this.main.createFile(name, w.text);
+                keep.add(f);
+                first = first ?? f;
+            }
+            for (const f of this.main.getFiles().slice()) if (!keep.has(f)) { this.editor.forgetFile(f); this.main.deleteFile(f); }
+            this.main.getCompiler().setFiles(this.main.getFiles());
+            this.main.getCompiler().triggerCompile();
+            this.main.flush();
+            if (first) this.main.setFileActive(first);
+            this.project.name = String(d.title || "Prüfungsaufgabe").slice(0, 80);
+            this.renderFileTabs();
+            this.renderProjectTitle();
+            this.setView("code");
+            this.pfLast = JSON.stringify(this.pfFiles());
+        } finally {
+            setTimeout(() => { this.pfLoading = false; }, 300);
+        }
+        if (this.pfReadonly) this.toast("Nur ansehen: Du kannst den Code ausführen, Änderungen werden nicht gespeichert.", "info", 4000);
     }
 
     /** „In JPad übernehmen“ aus dem Lernpfad: Klasse als eigene Datei (gleichnamige Datei auf Wunsch ersetzen) */

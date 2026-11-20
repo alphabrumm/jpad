@@ -99,8 +99,10 @@ export class ProjectStore {
     ensureCurrent(): ProjectInfo {
         let current = this.getCurrentId();
         let p = current ? this.get(current) : undefined;
+        // das Arbeitsprojekt des Prüfungsmodus (source „pfapp“) ist außerhalb der Prüfung nie das aktuelle Projekt
+        if (p?.source == "pfapp" && !/[?&]pfapp\b/.test(location.search)) p = undefined;
         if (!p) {
-            p = this.list()[0];
+            p = this.list().find(x => x.source != "pfapp");
         }
         if (!p) {
             p = this.createInfo("Mein erstes Projekt");

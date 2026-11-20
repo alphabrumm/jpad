@@ -44,6 +44,14 @@ Bedienung und Gestaltung.
   Nur für den Editor: `pf-editor-ready` (→ `pf-open` mit dem PathFinder-Dokument, bei älteren Lernpfaden mit
   `<section class="station">` stattdessen mit `html` – PathFinder übernimmt sie im Originaldesign), `pf-editor-close`,
   `jpad-set-lernpfad`.
+- **Prüfungsmodus `?pfapp`** (für Probe/PathFinder, Aufgabenart „JPad“ in Prüfungen): Nur eingebettet (iframe). JPad nutzt ein
+  verstecktes Arbeitsprojekt (Quelle „pfapp“, nie in der Projektliste, nie das aktuelle Projekt außerhalb der Prüfung), blendet
+  Projekte, Datei öffnen/sichern, JCode, Lernpfade und eigene Sprites aus. Protokoll „pf-app“ v1 (postMessage):
+  JPad → `{type:"pf-app", action:"ready", app:"jpad", v:1}` (jede Sekunde bis `load`); Prüfung → `load {task, title, files, readonly}`
+  (Dateien ersetzen den Inhalt); JPad → `state {task, files, run?:{output, error}}` nach Änderungen (0,7 s gebündelt, Sicherheitsnetz
+  alle 3 s) und nach jedem Programmlauf, nur an die Herkunft der `load`-Meldung; Prüfung → `flush {req}` (sofort `state` mit req),
+  `stop` (Programm anhalten). `readonly`: ausführen ja, melden nein (Lehrkraft bei der Korrektur). Code: `App.ts`, Abschnitt
+  „Prüfungsmodus“; Gegenstück: PathFinder `core/pfapp.js`, Anleitung `vendor/pathfinder/docs/APP-AUFGABEN.md`.
 - **PathFinder-Kopien der Lernpfade** (`learn/…/Lernpfad-*-PathFinder.html`, `learn/10/JPad-*-PathFinder.json`): sehen
   genauso aus wie die Originale, enthalten aber das PathFinder-Dokument und lassen sich mit dem gelben Stift bearbeiten
   (Texte, Aufgaben, Quizfragen, Code; Labore und Animationen bleiben HTML). Die Originale bleiben unverändert.
