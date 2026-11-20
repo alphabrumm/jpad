@@ -1844,12 +1844,39 @@ export class App {
             const s = t.querySelector("span"); if (s) s.textContent = "Aufgabe";
         });
         window.addEventListener("message", ev => this.onPfMessage(ev));
+        /*
+         * Fokus: Die Prüfung blendet JPad beim Schließen nur aus. Hatte der Editor dabei den Fokus, blieb er im
+         * ausgeblendeten Fenster „hängen“ – beim nächsten Öffnen nahm Safari (iPad) ein Antippen dann nicht mehr als
+         * Fokus an: kein Cursor, keine Eingabe, bis ein Baustein den Fokus per Code setzte. Deshalb den Fokus abgeben,
+         * sobald JPad ihn an die Prüfung verliert oder eine Aufgabe lädt, und beim ersten Antippen danach einen
+         * hängengebliebenen Fokus lösen, damit das Antippen ihn neu setzt.
+         */
+        // (nicht, wenn der Fokus nur in die Aufgabenseite im Reiter „Aufgabe“ wandert – dann hat das Dokument ihn noch)
+        window.addEventListener("blur", () => setTimeout(() => { if (!document.hasFocus()) this.pfReleaseFocus(); }, 0));
+        window.addEventListener("focus", () => { this.pfStale = false; });
+        const unstick = () => {
+            if (!this.pfStale) return;
+            this.pfStale = false;
+            const cd = this.editor.view.contentDOM;
+            if (document.activeElement == cd) cd.blur();
+        };
+        this.editor.view.dom.addEventListener("touchstart", unstick, { capture: true, passive: true });
+        this.editor.view.dom.addEventListener("mousedown", unstick, true);
         this.onProgramEnd = (output, error) => { if (this.pfTask != null) this.pfSend({ run: { output, error } }); };
         const ready = () => { try { window.parent.postMessage({ type: "pf-app", action: "ready", app: "jpad", v: 1 }, "*"); } catch (e) { } };
         ready();
         this.pfReadyTimer = setInterval(() => { if (this.pfTask == null) ready(); else clearInterval(this.pfReadyTimer); }, 1000);
         // Sicherheitsnetz: auch Änderungen ohne markModified (neue Datei, Umbenennen) kommen an
         setInterval(() => this.pfSend(), 3000);
+    }
+
+    /** Fokus wurde an die Prüfung abgegeben bzw. eine Aufgabe neu geladen: beim nächsten Antippen neu setzen */
+    private pfStale = false;
+    private pfReleaseFocus() {
+        this.pfStale = true;
+        if (this.root.dataset.kbhold == "true") this.unparkEditor();
+        const ae = <HTMLElement | null>document.activeElement;
+        if (ae && ae != document.body) try { ae.blur(); } catch (e) { }
     }
 
     private pfFiles() {
@@ -1900,6 +1927,7 @@ export class App {
     /** Aufgabe laden: Dateien der Prüfung übernehmen (gleichnamige Dateien werden ersetzt, übrige entfernt) */
     private pfLoad(d: any) {
         this.pfStop();
+        this.pfReleaseFocus();
         this.pfLoading = true;
         try {
             this.pfTask = String(d.task ?? "");
