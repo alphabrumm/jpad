@@ -31,6 +31,10 @@ export class TouchTips {
     private suppressClick = false;
     private tipEl: HTMLElement | null = null;
     private tipAnchor: HTMLElement | null = null;
+    /** Prüfungsmodus: keine Hinweise durch langes Drücken */
+    disabled = false;
+    /** Knopf „Cheat Sheet“ im Hinweis der Glühbirne */
+    onCheatSheet: (() => void) | null = null;
 
     constructor() {
         const opt = { capture: true, passive: false } as AddEventListenerOptions;
@@ -69,6 +73,7 @@ export class TouchTips {
         }
 
         this.cancel();
+        if (this.disabled) return;
         // Finger, Stift und (JPadBlox) Maus: langes Drücken mit der linken Maustaste zeigt den Hinweis ebenso
         if (!e.isPrimary) return;
         if (e.pointerType != "touch" && !((e.pointerType == "mouse" || e.pointerType == "pen") && e.button == 0)) return;
@@ -165,8 +170,12 @@ export class TouchTips {
         pop.setAttribute("role", "dialog");
         pop.innerHTML = `
             <span class="jp-tip-info-icon">${icon("lightbulb")}</span>
-            <p>Weißt Du nicht, was ein Button bewirkt? Lege einfach eine halbe Sekunde lang Deinen Finger auf den Button (oder halte die Maustaste so lange gedrückt), um Hilfe zu bekommen.</p>
+            <div class="jp-tip-info-body">
+                <p>Weißt Du nicht, was ein Button bewirkt? Lege einfach eine halbe Sekunde lang Deinen Finger auf den Button (oder halte die Maustaste so lange gedrückt), um Hilfe zu bekommen.</p>
+                ${this.onCheatSheet ? `<button class="jp-cheat-btn" data-tip="Java Cheat Sheet: alles Wichtige auf einen Blick, mit Beispielen">&raquo; Cheat Sheet &laquo;</button>` : ""}
+            </div>
             <button class="jp-iconbtn jp-tip-close" aria-label="Hinweis schließen">${icon("close")}</button>`;
+        pop.querySelector(".jp-cheat-btn")?.addEventListener("click", () => { this.hideTip(); this.onCheatSheet?.(); });
         this.place(pop, anchor);
     }
 

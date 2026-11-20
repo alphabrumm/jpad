@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Java Cheat Sheet</title>
+<style>
+:root {
+  --ink: #1d2030; --ink2: #5a5f74; --line: rgba(0,0,0,.08); --bg: #f4f1ea;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, system-ui, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+code, pre, .uml, .obj { font-family: var(--mono); font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+
+/* Die ganze Seite ist eine feste Fläche, die auf das Fenster skaliert wird – passt immer genau auf einen Bildschirm */
+#sheet { position: absolute; left: 0; top: 0; transform-origin: 0 0; display: grid; gap: 9px; padding: 10px; }
+#sheet.quer { width: 1120px; height: 720px; grid-template-columns: repeat(4, 1fr); grid-template-rows: 50px repeat(3, 1fr) 34px; }
+#sheet.hoch { width: 760px; height: 1060px; grid-template-columns: repeat(3, 1fr); grid-template-rows: 50px repeat(4, 1fr) 34px; }
+
+header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 6px; }
+header .rk { font-size: 34px; line-height: 1; }
+header .k { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink2); }
+header h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+header h1 span { background: linear-gradient(90deg, #e2557b, #f39c2b, #2bb37a, #3a7bd5, #8e5bd8); -webkit-background-clip: text; background-clip: text; color: transparent; }
+header .sp { flex: 1; }
+.hbtn { border: 1px solid var(--line); background: #fff; border-radius: 12px; height: 36px; padding: 0 12px; font: 600 13px -apple-system, system-ui, sans-serif; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.hbtn:active { transform: scale(.97); }
+
+.tile { position: relative; border-radius: 14px; padding: 9px 11px 8px; background: var(--c1); border: 2px solid var(--c2); overflow: hidden; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tile > * { flex-shrink: 0; }
+.tile h2 { margin: 0; font-size: 14.5px; display: flex; align-items: center; gap: 6px; color: var(--c3); padding-right: 32px; }
+.tile h2 .i { font-size: 17px; }
+.tile .m { font-size: 11.6px; line-height: 1.3; margin: 0; }
+.tile .m b { color: var(--c3); }
+.tile pre { margin: 0; padding: 6px 7px; background: rgba(255,255,255,.78); border-radius: 8px; font-size: 10.6px; line-height: 1.38; white-space: pre; overflow: hidden; border: 1px solid rgba(0,0,0,.05); }
+.hoch .tile pre { font-size: 9.7px; }
+.tile .out { font-size: 10.4px; color: var(--ink2); margin: 0; }
+.tile .out code { background: #1f2333; color: #c9f7c9; padding: 1px 5px; border-radius: 4px; }
+.tile .row { display: flex; gap: 6px; align-items: flex-start; }
+.lupe { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--c2); background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; color: var(--c3); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.lupe svg { width: 16px; height: 16px; }
+.lupe:active { transform: scale(.92); }
+
+/* UML: Klassenkarte mit spitzen Ecken, Objektkarte stark abgerundet */
+.uml { border: 1.6px solid var(--ink); background: #fff; font-size: 10.2px; line-height: 1.32; min-width: 0; }
+.uml .n { font-weight: 700; text-align: center; border-bottom: 1.6px solid var(--ink); padding: 2px 6px; font-family: -apple-system, system-ui, sans-serif; font-size: 11px; }
+.uml .a { padding: 3px 6px; white-space: nowrap; }
+.obj { border: 1.6px solid var(--ink); border-radius: 14px; background: #fff; font-size: 10.2px; line-height: 1.32; overflow: hidden; }
+.obj .n { text-align: center; text-decoration: underline; font-weight: 700; padding: 2px 8px; border-bottom: 1.6px solid var(--ink); font-family: -apple-system, system-ui, sans-serif; font-size: 11px; }
+.obj .a { padding: 3px 8px; white-space: nowrap; }
+
+footer { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; }
+.chips { flex: 1; display: flex; gap: 6px; overflow: hidden; align-items: center; position: relative; min-width: 0; }
+.chip { font-size: 11px; padding: 4px 9px; border-radius: 99px; background: #fff; border: 1px solid var(--line); white-space: nowrap; }
+.chip b { color: #6c3fc4; }
+
+/* Syntaxfarben */
+.kw { color: #b0306b; font-weight: 600; } .ty { color: #1f6fb8; font-weight: 600; } .st { color: #2a8a43; } .nu { color: #c2610a; } .cm { color: #8a8fa3; font-style: italic; }
+
+/* Lupen-Fenster: verschiebbar am Griff oben */
+.pop { position: fixed; z-index: 50; width: min(470px, 94vw); max-height: min(78vh, 640px); display: flex; flex-direction: column; background: #fff; border-radius: 16px; box-shadow: 0 18px 50px rgba(20,20,40,.32), 0 2px 6px rgba(0,0,0,.12); border: 2px solid var(--c2); overflow: hidden; }
+.pop .bar { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; background: var(--c1); border-bottom: 2px solid var(--c2); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.pop .bar:active { cursor: grabbing; }
+.pop .grip { width: 38px; height: 5px; border-radius: 3px; background: var(--c2); position: absolute; left: 50%; top: 4px; transform: translateX(-50%); opacity: .8; }
+.pop .bar b { flex: 1; font-size: 15px; color: var(--c3); padding-top: 6px; }
+.pop .x { width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(255,255,255,.85); font-size: 16px; cursor: pointer; margin-top: 4px; }
+.pop .body { padding: 10px 14px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; font-size: 14px; line-height: 1.45; }
+.pop h4 { margin: 12px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--c3); }
+.pop h4:first-child { margin-top: 2px; }
+.pop p { margin: 4px 0; }
+.pop pre { margin: 6px 0; padding: 8px 10px; background: #f6f7fb; border-radius: 9px; font-size: 12.5px; line-height: 1.42; white-space: pre; overflow-x: auto; border: 1px solid #e7e9f2; }
+.pop code { background: #f1f2f8; padding: 0 4px; border-radius: 4px; font-size: .92em; }
+.pop pre code { background: none; padding: 0; }
+.pop ul { margin: 4px 0; padding-left: 20px; }
+.pop .warn { background: #fff1ec; border-left: 4px solid #e8603c; padding: 6px 10px; border-radius: 6px; margin: 8px 0; }
+.pop .ok { background: #ecfaf1; border-left: 4px solid #2bb37a; padding: 6px 10px; border-radius: 6px; margin: 8px 0; }
+.pop .links a { display: flex; gap: 8px; align-items: center; padding: 8px 10px; margin: 5px 0; border-radius: 10px; background: var(--c1); color: var(--ink); text-decoration: none; border: 1px solid var(--c2); font-size: 13.5px; }
+.pop .links a span { color: var(--ink2); font-size: 12px; margin-left: auto; white-space: nowrap; }
+.pop table { border-collapse: collapse; font-size: 13px; margin: 6px 0; width: 100%; }
+.pop td, .pop th { border: 1px solid #e3e5ee; padding: 4px 7px; text-align: left; vertical-align: top; }
+.pop th { background: #f6f7fb; }
+.pop .out { background: #1f2333; color: #c9f7c9; font-family: var(--mono); font-size: 12.5px; padding: 6px 10px; border-radius: 8px; white-space: pre; display: block; margin: 6px 0; }
+</style>
+</head>
+<body>
+<div id="sheet" class="quer"></div>
+
+<script>
+// ---------- Syntaxfarben (Java, ohne Bibliothek) ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const KW = /^(class|void|new|this|if|else|while|return|true|false|null|extends|super)$/, TY = /^(String|Integer|Double|Boolean|Character)$/;
+function hl(code) {
+  let out = '', m; const re = /(\/\/[^\n]*)|("(?:[^"\\]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-zÄÖÜäöüß_]\w*)|([\s\S])/g;
+  while ((m = re.exec(code))) {
+    if (m[1]) out += `<span class="cm">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="st">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span class="nu">${m[3]}</span>`;
+    else if (m[4]) out += KW.test(m[4]) ? `<span class="kw">${m[4]}</span>` : TY.test(m[4]) ? `<span class="ty">${m[4]}</span>` : esc(m[4]);
+    else out += esc(m[5]);
+  }
+  return out;
+}
+const pre = c => `<pre><code>${hl(c.replace(/^\n|\n$/g, ''))}</code></pre>`;
+const out = t => `<span class="out">${esc(t)}</span>`;
+
+// ---------- Lernpfade (PathFinder-Fassungen auf jpad.pandapy.de) ----------
+const LP = {
+  bello: ['Bello lernt Java', 'https://jpad.pandapy.de/learn/demo/Lernpfad-Bello-PathFinder.html'],
+  schaf: ['Der Schaf-Konstruktor', 'https://jpad.pandapy.de/learn/10/Lernpfad-Schafkonstruktor-PathFinder.html'],
+  vogel: ['Vogelflug', 'https://jpad.pandapy.de/learn/10/Lernpfad-Vogelflug-PathFinder.html'],
+};
+const links = L => `<h4>Hier hatten wir das</h4><div class="links">${L.map(([k, s, t]) => `<a href="${LP[k][1]}#s${s}" target="_blank" rel="noopener">📘 <b>${esc(LP[k][0])}</b> · ${esc(t)}<span>Station ${s} ↗</span></a>`).join('')}</div>`;
+
+// ---------- Die Bausteine ----------
+// c: [Hintergrund, Rand, Schrift]; tile: Inhalt der Kachel; pop: Inhalt des Lupen-Fensters
+const T = [
+{ id: 'typen', i: '🧬', t: 'Datentypen', c: ['#fff3c9', '#f2c94c', '#8a5d00'],
+  tile: `<p class="m">Jeder Wert hat einen <b>Typ</b> – er steht vor dem Namen.</p>
+${pre(`String  name   = "Dolli";
+Integer alter  = 3;
+Double  wolle  = 4.5;
+Boolean istGeschoren = false;`)}<p class="m">Kommazahl mit <b>Punkt</b>: <code>4.5</code></p>`,
+  pop: `<h4>Merke</h4>
+<table><tr><th>Typ</th><th>wofür?</th><th>Beispiel</th></tr>
+<tr><td><code>String</code></td><td>Text, immer in Anführungszeichen</td><td><code>"Dolli"</code></td></tr>
+<tr><td><code>Integer</code></td><td>ganze Zahl</td><td><code>3</code>, <code>50</code></td></tr>
+<tr><td><code>Double</code></td><td>Kommazahl – mit <b>Punkt</b></td><td><code>4.5</code>, <code>9.81</code></td></tr>
+<tr><td><code>Boolean</code></td><td>Ja/Nein-Frage: wahr oder falsch</td><td><code>true</code>, <code>false</code></td></tr></table>
+<h4>Typische Fehler – JPad meldet sie</h4>
+${pre(`Integer wolle = 4.5;       // falsch: Kommazahl → Double
+Boolean istGeschoren = "ja"; // falsch: nur true oder false
+String name = Dolli;       // falsch: Text braucht " "`)}
+<div class="ok">Tipp: Für Ja/Nein-Fragen wie „ist startklar?“ oder „ist geschoren?“ nimmst du immer <code>Boolean</code>. Der Name beginnt oft mit <code>ist…</code>.</div>
+${links([['bello', 2, 'Welcher Datentyp passt?']])}` },
+
+{ id: 'klasse', i: '📐', t: 'Klasse & Attribute', c: ['#e3f0ff', '#7fb0ef', '#1b4f9c'],
+  tile: `<p class="m">Die <b>Klasse</b> ist der Bauplan. <b>Attribute</b> sind die Eigenschaften, die jedes Objekt bekommt.</p>
+<div class="row"><div class="uml" style="flex:0 0 auto"><div class="n">Schaf</div><div class="a">name: String<br>farbe: String<br>alter: Integer</div></div>
+${pre(`class Schaf {
+   String name;
+   String farbe;
+   Integer alter;
+}`).replace('<pre>', '<pre style="flex:1">')}</div>`,
+  pop: `<h4>Merke</h4>
+<p>Eine Klasse beschreibt, <b>was alle Objekte dieser Art haben</b>. Klassennamen beginnen groß (<code>Schaf</code>, <code>Hund</code>), Attribute klein (<code>name</code>, <code>alter</code>).</p>
+<p>Jede Klasse bekommt in JPad einen <b>eigenen Reiter</b> (Datei) mit demselben Namen wie die Klasse.</p>
+<h4>Klassenkarte → Code</h4>
+<div class="row" style="gap:12px;align-items:center"><div class="uml"><div class="n">Hund</div><div class="a">name: String<br>alter: Integer<br>istStubenrein: Boolean</div></div><span style="font-size:22px">→</span>
+${pre(`class Hund {
+   String name;
+   Integer alter;
+   Boolean istStubenrein;
+}`)}</div>
+<p>In der Klassenkarte steht <code>name: String</code>, im Code umgekehrt: <b>erst der Typ, dann der Name</b>, und am Ende ein Strichpunkt.</p>
+${links([['bello', 3, 'Ein Bauplan für viele Hunde']])}` },
+
+{ id: 'objekt', i: '🐑', t: 'Objekte: new und Punkt', c: ['#ffe6ee', '#f08fb0', '#a32456'],
+  tile: `<p class="m"><b>new</b> baut ein Objekt nach dem Bauplan, der <b>Punkt</b> führt zu seinen Attributen.</p>
+${pre(`Schaf s1 = new Schaf();
+s1.name = "Dolli";
+s1.alter = 3;`)}
+<div class="row" style="align-items:center"><span class="m">ergibt →</span><div class="obj"><div class="n">s1 : Schaf</div><div class="a">name = "Dolli"<br>alter = 3</div></div></div>`,
+  pop: `<h4>Merke</h4>
+<p><code>Schaf s1 = new Schaf();</code> heißt: Baue nach dem Bauplan <code>Schaf</code> ein neues Schaf und nenne es <code>s1</code>.</p>
+<p>Viele Objekte, ein Bauplan – jedes hat seine <b>eigenen</b> Werte:</p>
+${pre(`Schaf s1 = new Schaf();
+s1.name = "Dolli";
+
+Schaf s2 = new Schaf();
+s2.name = "Gunthard";
+
+println(s1.name);   // Dolli
+println(s2.name);   // Gunthard`)}
+<div class="row" style="gap:10px;flex-wrap:wrap"><div class="obj"><div class="n">s1 : Schaf</div><div class="a">name = "Dolli"</div></div><div class="obj"><div class="n">s2 : Schaf</div><div class="a">name = "Gunthard"</div></div></div>
+<div class="ok">Der Punkt heißt: „von diesem Objekt“. <code>s1.name</code> = der Name von s1.</div>
+${links([['bello', 4, 'Bello und Cara werden gebaut'], ['schaf', 1, 'Ganz schön viel Tipparbeit']])}` },
+
+{ id: 'ausgabe', i: '🖨', t: 'Ausgabe: println und +', c: ['#e2f7ec', '#6cc897', '#17723f'],
+  tile: `<p class="m"><b>+</b> klebt Text und Werte zusammen. Leerzeichen stehen <b>in</b> den Anführungszeichen.</p>
+${pre(`println(s1.name + " ist " +
+   s1.alter + " Jahre alt.");`)}
+<p class="out">Ausgabe: <code>Dolli ist 3 Jahre alt.</code></p>`,
+  pop: `<h4>Merke</h4>
+<p><code>println(…)</code> schreibt etwas in die Ausgabe und beginnt danach eine neue Zeile. <code>print(…)</code> bleibt in derselben Zeile.</p>
+${pre(`print("Mäh");
+print("Mäh");
+println("!");
+println("Ende");`)}
+${out('MähMäh!\nEnde')}
+<h4>Text und Werte verbinden</h4>
+${pre(`Hund h1 = new Hund();
+h1.name = "Bello";
+h1.alter = 3;
+println(h1.name + " ist " + h1.alter + " Jahre alt.");`)}
+${out('Bello ist 3 Jahre alt.')}
+<div class="warn">Genau hinschauen! In der Prüfung muss die Ausgabe <b>genau</b> stimmen: Leerzeichen, Punkt am Ende, Groß- und Kleinschreibung. <code>name + "ist"</code> ergibt <code>Belloist</code>.</div>
+${links([['bello', 6, 'Die Methode bauen (println)']])}` },
+
+{ id: 'konstruktor', i: '🏗', t: 'Konstruktor', c: ['#efe6ff', '#a98be6', '#5b2fb0'],
+  tile: `<p class="m">Heißt wie die Klasse, <b>ohne void</b>, läuft bei <b>new</b>.</p>
+${pre(`Schaf(String name, String farbe) {
+   this.name = name;
+   this.farbe = farbe;
+}`)}${pre(`Schaf s1 =
+   new Schaf("Dolli", "weiss");`)}`,
+  pop: `<h4>Merke</h4>
+<ul><li>Der Konstruktor steht in der Klasse und <b>heißt genau wie die Klasse</b>.</li>
+<li>Er hat <b>keinen Rückgabetyp</b> – auch kein <code>void</code>.</li>
+<li>Er läuft <b>automatisch bei new</b>. Die Werte in den Klammern landen in den Parametern.</li>
+<li>Werte, die für jedes neue Objekt gleich sind, setzt er selbst (hier: <code>alter = 0</code>).</li></ul>
+${pre(`class Schaf {
+   String name;
+   String farbe;
+   Integer alter;
+
+   // Konstruktor
+   Schaf(String name, String farbe) {
+      this.name = name;
+      this.farbe = farbe;
+      this.alter = 0;
+   }
+}`)}
+<h4>Vorher – nachher</h4>
+${pre(`// vorher: vier Zeilen
+Schaf s1 = new Schaf();
+s1.name = "Dolli";
+s1.farbe = "weiss";
+s1.alter = 0;
+
+// mit Konstruktor: eine Zeile
+Schaf s1 = new Schaf("Dolli", "weiss");`)}
+<div class="warn">Hat die Klasse einen Konstruktor mit Parametern, gibt es <code>new Schaf()</code> ohne Werte nicht mehr – JPad meldet dann einen Fehler im Hauptprogramm. Passe diese Zeilen an!</div>
+${links([['schaf', 4, 'Der Konstruktor'], ['schaf', 5, 'Schafe neu bauen']])}` },
+
+{ id: 'this', i: '👉', t: 'this', c: ['#ffeedd', '#f3a865', '#a14d05'],
+  tile: `<p class="m"><b>this.name</b> = das Attribut <b>dieses</b> Objekts. <b>name</b> allein = der Parameter.</p>
+${pre(`this.name = name; // ✓
+name = name;      // ✗ nutzlos`)}
+<p class="m">Nötig, wenn Parameter und Attribut gleich heißen.</p>`,
+  pop: `<h4>Merke</h4>
+<p>Heißen Parameter und Attribut gleich, meint Java mit <code>name</code> immer den <b>Parameter</b>. Das Attribut erreichst du dann nur mit <code>this.name</code> – „der Name von diesem Schaf hier“.</p>
+${pre(`Schaf(String name, String farbe) {
+   name = name;        // Parameter = Parameter → Attribut bleibt leer!
+   this.farbe = farbe; // richtig: Attribut = Parameter
+}`)}
+<div class="ok">Eselsbrücke: <b>this.</b> zeigt auf das Schaf, das gerade gebaut wird. Links vom = steht, <b>wo</b> der Wert hin soll (das Attribut), rechts, <b>was</b> hinein soll (der Parameter).</div>
+${links([['schaf', 6, 'n, f, farb, farbe_ … ?'], ['schaf', 7, 'this.farbe und farbe']])}` },
+
+{ id: 'methode', i: '⚙️', t: 'Methoden', c: ['#dff6f8', '#5fc3cf', '#0d6873'],
+  tile: `<p class="m">Eine <b>Methode</b> ist etwas, das ein Objekt <b>tun</b> kann. <b>void</b> = gibt nichts zurück.</p>
+${pre(`void maehen() {
+   println(name + " sagt Mäh.");
+}`)}${pre(`s1.maehen();   // Aufruf`)}`,
+  pop: `<h4>Merke</h4>
+<ul><li>Die Methode steht <b>in der Klasse</b> (im Reiter <code>Schaf</code>), unter den Attributen.</li>
+<li>Aufgerufen wird sie im <b>Hauptprogramm</b>: Objekt, Punkt, Name, Klammern, Strichpunkt.</li>
+<li>In der Methode kannst du die Attribute direkt benutzen – jedes Objekt nimmt seine eigenen Werte.</li></ul>
+${pre(`class Schaf {
+   String name;
+   String schnarchGeraeusch;
+
+   void schlafen() {
+      println(name + " schnarcht: " + schnarchGeraeusch);
+   }
+}`)}
+${pre(`// Hauptprogramm
+Schaf s1 = new Schaf("Dolli", "Mpfhh");
+Schaf s3 = new Schaf("Helga", "Pffft");
+s1.schlafen();
+s3.schlafen();`)}
+${out('Dolli schnarcht: Mpfhh\nHelga schnarcht: Pffft')}
+<p style="font-size:12.5px;color:#5a5f74">(Hier hat die Klasse einen Konstruktor mit zwei Parametern: Name und Schnarchgeräusch.)</p>
+${links([['bello', 5, 'Was ist eine Methode?'], ['bello', 6, 'Die Methode bauen']])}` },
+
+{ id: 'parameter', i: '📦', t: 'Parameter', c: ['#f1f7d9', '#a9c94a', '#4c6a05'],
+  tile: `<p class="m">Ein <b>Parameter</b> ist eine Schachtel für einen Wert, den man beim Aufruf einer Methode in <b>runden Klammern</b> mitgibt.</p>
+${pre(`void fuettern(Integer kilo) {
+   futter = futter + kilo;
+}`)}${pre(`s1.fuettern(5);   // kilo = 5`)}`,
+  pop: `<h4>Merke</h4>
+<p>In den Klammern der Methode steht <b>Typ und Name</b> des Parameters. Beim Aufruf schreibst du den <b>Wert</b> hinein – er landet in der Schachtel und gilt nur in dieser Methode.</p>
+${pre(`void umbenennen(String neuerName) {
+   name = neuerName;
+}
+
+void fuettern(Integer kilo) {
+   futter = futter + kilo;   // zum alten Wert dazu
+}`)}
+${pre(`// Hauptprogramm
+s1.umbenennen("Dolly");
+s1.fuettern(5);
+s1.fuettern(3);     // jetzt 8 kg mehr Futter`)}
+<div class="ok"><code>futter = futter + kilo;</code> liest den alten Wert, rechnet dazu und speichert das Ergebnis wieder im Attribut.</div>
+${links([['schaf', 3, 'Parameter: Werte in Schachteln']])}` },
+
+{ id: 'ifelse', i: '🔀', t: 'if – else', c: ['#ffe2dd', '#ef8a78', '#a5321c'],
+  tile: `<p class="m">Ist die Bedingung <b>wahr</b>, läuft der if-Teil, <b>sonst</b> der else-Teil.</p>
+${pre(`if (istStubenrein == true) {
+   println(name + " darf rein.");
+} else {
+   println(name + " muss raus.");
+}`)}`,
+  pop: `<h4>Merke</h4>
+<p>Die Bedingung steht in runden Klammern. Es läuft <b>genau einer</b> der beiden Teile.</p>
+${pre(`class Hund {
+   String name;
+   Boolean istStubenrein;
+
+   void kannAlleineBleiben() {
+      if (istStubenrein == true) {
+         println(name + " kann alleine bleiben.");
+      } else {
+         println(name + " braucht Gesellschaft.");
+      }
+   }
+}`)}
+${pre(`// Hauptprogramm: Bello ist stubenrein, Cara nicht
+h1.kannAlleineBleiben();
+h2.kannAlleineBleiben();`)}
+${out('Bello kann alleine bleiben.\nCara braucht Gesellschaft.')}
+<h4>Im if-Teil darf mehr stehen</h4>
+${pre(`if (alter >= 2) {
+   istErwachsen = true;
+   println(name + " ist erwachsen.");
+} else {
+   istErwachsen = false;
+   println(name + " ist ein Lamm.");
+}`)}
+<div class="warn">Vergleichen mit <b>==</b> (zwei Gleichheitszeichen). Ein einzelnes <b>=</b> speichert einen Wert.</div>
+${links([['bello', 6, 'Die Methode bauen (if)'], ['bello', 7, 'Schritt für Schritt im Diagramm']])}` },
+
+{ id: 'vergleich', i: '⚖️', t: 'Vergleiche', c: ['#fdf0ff', '#d58be6', '#7d2794'],
+  tile: `<p class="m">Achte auf <b>„mindestens“</b> und <b>„mehr als“</b>!</p>
+${pre(`futter >= 30   // mindestens 30
+futter > 30    // mehr als 30
+futter <= 30   // höchstens 30
+futter < 30    // weniger als 30
+futter == 30   // genau 30
+futter != 30   // nicht 30`)}`,
+  pop: `<h4>Merke</h4>
+<table><tr><th>in Worten</th><th>Code</th><th>30 erfüllt?</th></tr>
+<tr><td>mindestens 30</td><td><code>&gt;= 30</code></td><td>✓ ja</td></tr>
+<tr><td>mehr als 30</td><td><code>&gt; 30</code></td><td>✗ nein</td></tr>
+<tr><td>höchstens 30</td><td><code>&lt;= 30</code></td><td>✓ ja</td></tr>
+<tr><td>weniger als 30</td><td><code>&lt; 30</code></td><td>✗ nein</td></tr>
+<tr><td>genau 30</td><td><code>== 30</code></td><td>✓ ja</td></tr>
+<tr><td>nicht 30</td><td><code>!= 30</code></td><td>✗ nein</td></tr></table>
+${pre(`// Das Schaf darf auf die Weide, wenn es mindestens 30 kg Futter hat
+if (futter >= 30) {
+   println(name + " darf auf die Weide.");
+} else {
+   println(name + " muss noch fressen.");
+}`)}
+<div class="ok">Probe mit dem Grenzwert: Was passiert bei <b>genau</b> 30? Bei „mindestens“ muss es klappen – also <code>&gt;=</code>.</div>
+${links([['bello', 6, 'Die Methode bauen (Bedingungen)']])}` },
+
+{ id: 'while', i: '🔁', t: 'while-Schleife', c: ['#e0f4ff', '#59b4e6', '#0b5d8c'],
+  tile: `<p class="m">Wiederholt den Rumpf, <b>solange</b> die Bedingung wahr ist. Im Rumpf muss sich etwas ändern!</p>
+${pre(`Integer zahl = 3;
+while (zahl > 0) {
+   println(zahl);
+   zahl = zahl - 1;
+}
+println("Alle Schafe da!");`)}`,
+  pop: `<h4>Merke</h4>
+<ol style="margin:4px 0;padding-left:20px"><li>Java prüft die Bedingung in den runden Klammern.</li><li>Ist sie wahr, läuft der Rumpf <code>{ … }</code> – danach geht es zurück zur Bedingung.</li><li>Ist sie falsch, macht das Programm <b>nach</b> der schließenden Klammer weiter.</li></ol>
+<h4>Schäfer Ulf zählt seine Schafe</h4>
+${pre(`Integer schaf = 1;
+while (schaf <= 4) {
+   println("Schaf Nummer " + schaf);
+   schaf = schaf + 1;
+}
+println("Alle Schafe im Stall!");`)}
+${out('Schaf Nummer 1\nSchaf Nummer 2\nSchaf Nummer 3\nSchaf Nummer 4\nAlle Schafe im Stall!')}
+<h4>Rückwärts zählen</h4>
+${pre(`Integer zahl = 3;
+while (zahl > 0) {
+   println(zahl);
+   zahl = zahl - 1;
+}
+println("Los!");`)}
+${out('3\n2\n1\nLos!')}
+<div class="warn">Vergisst du <code>zahl = zahl - 1;</code>, bleibt die Bedingung immer wahr – das Programm hört nie auf (Endlosschleife). Dann ■ Stopp drücken.</div>
+<div class="ok">Mit dem Knopf <b>Schritt</b> in JPad siehst du Zeile für Zeile, wie oft die Bedingung geprüft wird.</div>
+${links([['vogel', 4, 'Die while-Schleife'], ['vogel', 5, 'Zwölf Runden über den Himmel']])}` },
+
+{ id: 'whileif', i: '🐕', t: 'while + if', c: ['#fff0d6', '#efb24a', '#8a5200'],
+  tile: `<p class="m">In der Methode <b>rennen()</b>: erst <b>entscheiden</b>, dann <b>wiederholen</b>.</p>
+${pre(`if (istFit == true) {
+   while (energie > 0) {
+      strecke = strecke + 100;
+      energie = energie - 10;
+   }
+}`)}`,
+  pop: `<h4>Merke</h4>
+<p>Schleifen und Entscheidungen lassen sich ineinander schachteln. Achte auf die <b>Klammern</b> – jede <code>{</code> braucht ihre <code>}</code>. Mit <b>Code formatieren</b> in JPad siehst du an den Einrückungen, was wozu gehört.</p>
+${pre(`class Hund {
+   String name;
+   Integer energie;
+   Integer strecke;
+   Boolean istFit;
+
+   void rennen() {
+      if (istFit == true) {
+         while (energie > 0) {
+            strecke = strecke + 100;
+            energie = energie - 10;
+         }
+         println(name + " rennt " + strecke + " Meter.");
+      } else {
+         println(name + " bleibt im Körbchen.");
+      }
+   }
+}`)}
+${pre(`// Hauptprogramm: Bello hat 30 Energie und ist fit, Cara nicht
+h1.rennen();
+h2.rennen();`)}
+${out('Bello rennt 300 Meter.\nCara bleibt im Körbchen.')}
+<div class="ok">Die Ausgabe der Strecke steht <b>nach</b> der Schleife – sonst käme sie in jeder Runde.</div>
+${links([['vogel', 6, 'Solange noch Platz ist'], ['bello', 6, 'Die Methode bauen (if)']])}` },
+];
+
+const BEGRIFFE = [['Klasse', 'Bauplan für viele Objekte'], ['Objekt', 'nach dem Bauplan gebautes Ding, z. B. s1'], ['Attribut', 'Eigenschaft, die jedes Objekt hat'], ['Methode', 'etwas, das ein Objekt tun kann'], ['Konstruktor', 'läuft automatisch bei new'], ['Parameter', 'Schachtel für einen mitgegebenen Wert'], ['this', 'dieses Objekt'], ['if – else', 'entscheidet zwischen zwei Wegen'], ['while', 'wiederholt, solange die Bedingung wahr ist']];
+const EXTRA = {
+  begriffe: { t: 'Fachbegriffe', i: '📖', c: ['#efe9ff', '#a58ae0', '#4c2a9e'],
+    pop: `<table>${BEGRIFFE.map(([a, b]) => `<tr><td style="white-space:nowrap"><b>${esc(a)}</b></td><td>${esc(b)}</td></tr>`).join('')}</table>
+<h4>Alles zusammen am Schaf</h4>
+${pre(`class Schaf {                     // Klasse
+   String name;                   // Attribut
+
+   Schaf(String name) {           // Konstruktor
+      this.name = name;           // this + Parameter
+   }
+
+   void maehen() {                // Methode
+      println(name + " sagt Mäh.");
+   }
+}
+
+Schaf s1 = new Schaf("Dolli");    // Objekt
+s1.maehen();`)}
+${links([['schaf', 11, 'Das Wichtigste in drei Fragen'], ['bello', 9, 'Das Wichtigste in vier Fragen']])}` },
+  tipps: { t: 'Tipps für die Prüfung', i: '🚀', c: ['#e6f6ff', '#6db7e8', '#0b5d8c'],
+    pop: `<ul>
+<li><b>Lösche nichts!</b> Alle Programmier-Aufgaben bauen am selben Programm weiter.</li>
+<li>Tippe auf <b>▶</b>, bevor du zur Prüfung zurückgehst. Bewertet wird dein <b>letzter Programmlauf</b> – starte am Ende noch einmal.</li>
+<li>Die Ausgabe muss <b>genau</b> stimmen: Leerzeichen, Punkt, Groß- und Kleinschreibung.</li>
+<li>Rote Fehler? Schau in den Reiter <b>Probleme</b>. Oft fehlt ein <code>;</code> oder eine Klammer.</li>
+<li>Jede Klasse in ihren <b>eigenen Reiter</b>, der genauso heißt wie die Klasse.</li>
+<li>Werte im Hauptprogramm immer <b>aus dem Objekt</b> holen (<code>s1.name</code>), nicht abtippen.</li>
+<li>Steckst du fest? <b>Schritt</b> drücken und zuschauen, welche Zeile gerade läuft.</li></ul>
+<div class="ok">Die Aufgabenstellung siehst du in JPad im Reiter <b>Aufgabe</b>.</div>` },
+};
+
+// ---------- Aufbau ----------
+const LUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>';
+const sheet = document.getElementById('sheet');
+const cv = c => `--c1:${c[0]};--c2:${c[1]};--c3:${c[2]}`;
+sheet.innerHTML = `<header><span class="rk">🚀</span><div><div class="k">Informatik · 10</div><h1><span>Java Cheat Sheet</span></h1></div><span class="sp"></span>
+  <button class="hbtn" data-x="tipps">🚀 Tipps für die Prüfung</button><button class="hbtn" id="fs" title="Vollbild" aria-label="Vollbild">⛶</button></header>
+${T.map(x => `<section class="tile" style="${cv(x.c)}"><h2><span class="i">${x.i}</span>${esc(x.t)}</h2><button class="lupe" data-p="${x.id}" aria-label="Mehr zu ${esc(x.t)}">${LUPE}</button>${x.tile}</section>`).join('')}
+<footer><button class="hbtn" data-x="begriffe">📖 Fachbegriffe</button><div class="chips">${BEGRIFFE.map(([a, b]) => `<span class="chip"><b>${esc(a)}</b> = ${esc(b)}</span>`).join('')}</div></footer>`;
+
+// ---------- Einpassen: die Fläche füllt das Fenster (quer 4 Spalten, hoch 3 Spalten) ----------
+function fit() {
+  const vv = window.visualViewport, w = vv ? vv.width : innerWidth, h = vv ? vv.height : innerHeight;
+  const hoch = h > w * 1.05; sheet.className = hoch ? 'hoch' : 'quer';
+  const W = hoch ? 760 : 1120, H = hoch ? 1060 : 720, s = Math.min(w / W, h / H);
+  sheet.style.transform = `translate(${(w - W * s) / 2}px, ${(h - H * s) / 2}px) scale(${s})`;
+  const box = sheet.querySelector('.chips'); box.querySelectorAll('.chip').forEach(c => { c.hidden = false; });
+  let voll = false; box.querySelectorAll('.chip').forEach(c => { voll = voll || c.offsetLeft + c.offsetWidth > box.clientWidth; c.hidden = voll; });
+}
+addEventListener('resize', fit); window.visualViewport?.addEventListener('resize', fit); document.addEventListener('fullscreenchange', fit); document.addEventListener('webkitfullscreenchange', fit);
+fit();
+
+// ---------- Vollbild (iPad Safari mit webkit-Präfix) ----------
+// Eingebettet (z. B. in JPad): kein eigener Vollbild-Knopf
+if (window.parent !== window) document.getElementById('fs').remove();
+document.getElementById('fs')?.addEventListener('click', () => {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+});
+
+// ---------- Lupen-Fenster: verschiebbar am Griff ----------
+let z = 50, nPop = 0;
+function openPop(key) {
+  const x = T.find(t => t.id === key) || EXTRA[key]; if (!x) return;
+  const old = document.querySelector(`.pop[data-k="${key}"]`); if (old) { old.style.zIndex = ++z; return; }
+  const p = document.createElement('div'); p.className = 'pop'; p.dataset.k = key; p.style.cssText = cv(x.c) + `;z-index:${++z}`;
+  p.innerHTML = `<div class="bar"><span class="grip"></span><b>${x.i} ${esc(x.t)}</b><button class="x" aria-label="Schließen">✕</button></div><div class="body">${x.pop}</div>`;
+  (document.fullscreenElement || document.webkitFullscreenElement || document.body).appendChild(p);
+  const r = p.getBoundingClientRect(), off = (nPop++ % 4) * 26;
+  p.style.left = Math.max(8, (innerWidth - r.width) / 2 + off) + 'px';
+  p.style.top = Math.max(8, Math.min(innerHeight - r.height - 8, (innerHeight - r.height) / 2 + off)) + 'px';
+  p.querySelector('.x').onclick = () => { p.remove(); nPop = Math.max(0, nPop - 1); };
+  p.addEventListener('pointerdown', () => { p.style.zIndex = ++z; });
+  const bar = p.querySelector('.bar'); let drag = null;
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.closest('.x')) return;
+    drag = { x: e.clientX - p.offsetLeft, y: e.clientY - p.offsetTop }; bar.setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const nx = Math.min(innerWidth - 60, Math.max(60 - p.offsetWidth, e.clientX - drag.x)), ny = Math.min(innerHeight - 44, Math.max(0, e.clientY - drag.y));
+    p.style.left = nx + 'px'; p.style.top = ny + 'px';
+  });
+  const end = () => { drag = null; }; bar.addEventListener('pointerup', end); bar.addEventListener('pointercancel', end);
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-p], [data-x]'); if (b) openPop(b.dataset.p || b.dataset.x); });
+</script>
+</body>
+</html>

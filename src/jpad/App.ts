@@ -502,6 +502,7 @@ export class App {
         this.el.drawerClose.addEventListener("click", () => this.closeDrawer());
         this.el.drawerBackdrop.addEventListener("click", () => this.closeDrawer());
         this.el.projectBtn.addEventListener("click", () => this.renameProject());
+        this.tips.onCheatSheet = () => this.openCheatSheet();
         this.el.bulbBtn.addEventListener("click", () => this.tips.toggleInfo(this.el.bulbBtn));
         this.el.newFileBtn.addEventListener("click", () => this.newFile());
         // JPadBlox: Knopf „Zwischenablage in neue Datei“ entfällt
@@ -1802,6 +1803,25 @@ export class App {
     //   Prüfung → JPad  {action:"flush", req} → sofort „state“ mit req · {action:"stop"} → Programm anhalten
     // =====================================================================
 
+    /** Java Cheat Sheet (public/hilfe/CheatSheet-Java.html) als großes Fenster über JPad – nicht im Prüfungsmodus */
+    openCheatSheet() {
+        if (this.pfApp) return;
+        let ov = this.root.querySelector<HTMLElement>(".jp-cheat");
+        if (!ov) {
+            ov = document.createElement("div");
+            ov.className = "jp-cheat";
+            ov.setAttribute("role", "dialog");
+            ov.setAttribute("aria-label", "Java Cheat Sheet");
+            ov.innerHTML = `<div class="jp-cheat-box"><div class="jp-cheat-bar"><b>Java Cheat Sheet</b>`
+                + `<button class="jp-iconbtn" data-close aria-label="Cheat Sheet schließen" data-tip="Cheat Sheet schließen">${icon("close")}</button></div>`
+                + `<iframe src="hilfe/CheatSheet-Java.html" title="Java Cheat Sheet" allow="fullscreen"></iframe></div>`;
+            ov.addEventListener("click", e => { if (e.target == ov || (<HTMLElement>e.target).closest("[data-close]")) ov!.hidden = true; });
+            document.addEventListener("keydown", e => { if (e.key == "Escape" && ov && !ov.hidden) ov.hidden = true; });
+            this.root.appendChild(ov);
+        }
+        ov.hidden = false;
+    }
+
     private startPfApp() {
         this.root.dataset.pfapp = "1";
         // Projekte, Dateien, Lernpfade und eigene Sprites gibt es hier nicht – die Prüfung hält den Stand
@@ -1810,6 +1830,13 @@ export class App {
         this.root.querySelectorAll(".jp-drawer-body > h2").forEach(h => { if (h.textContent == "Projekte") h.remove(); });
         this.root.querySelectorAll(".jp-drawer-body .jp-menu-actions").forEach(g => { if (!g.querySelector("button")) g.remove(); });
         this.el.projectBtn.setAttribute("disabled", "");
+        // Keine Hilfen, die in einer Prüfung nicht erlaubt sind: Glühbirne (mit Cheat Sheet) und Hinweise durch langes Drücken.
+        // Die Bausteine mit ihren Dialogen bleiben.
+        this.tips.disabled = true;
+        this.tips.onCheatSheet = null;
+        this.tips.hideTip();
+        this.el.bulbBtn.style.display = "none";
+        this.alignBulbSoon();
         // Der Lernpfad-Reiter zeigt hier die Aufgabenstellung der Prüfung
         this.root.querySelectorAll<HTMLElement>(".jp-lernpfad-tab").forEach(t => {
             t.dataset.tip = "Aufgabe: die Aufgabenstellung aus der Prüfung";

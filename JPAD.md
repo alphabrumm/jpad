@@ -44,9 +44,13 @@ Bedienung und Gestaltung.
   Nur für den Editor: `pf-editor-ready` (→ `pf-open` mit dem PathFinder-Dokument, bei älteren Lernpfaden mit
   `<section class="station">` stattdessen mit `html` – PathFinder übernimmt sie im Originaldesign), `pf-editor-close`,
   `jpad-set-lernpfad`.
+- **Java Cheat Sheet** (`public/hilfe/CheatSheet-Java.html`): Glühbirne → Hinweis zum langen Drücken mit buntem, blinkendem
+  Knopf „» Cheat Sheet «“ → großes Fenster mit dem Blatt (passt sich selbst ein; Lupen öffnen verschiebbare Fenster mit Beispielen
+  und Links zu den Lernpfad-Stationen). Im Prüfungsmodus gibt es weder Glühbirne noch Cheat Sheet noch Hinweise durch langes Drücken.
 - **Prüfungsmodus `?pfapp`** (für Probe/PathFinder, Aufgabenart „JPad“ in Prüfungen): Nur eingebettet (iframe). JPad nutzt ein
   verstecktes Arbeitsprojekt (Quelle „pfapp“, nie in der Projektliste, nie das aktuelle Projekt außerhalb der Prüfung), blendet
-  Projekte, Datei öffnen/sichern, JCode, Lernpfade und eigene Sprites aus. Protokoll „pf-app“ v1 (postMessage):
+  Projekte, Datei öffnen/sichern, JCode, Lernpfade und eigene Sprites aus, ebenso Glühbirne, Cheat Sheet und Hinweise durch langes Drücken
+  (Bausteine und ihre Dialoge bleiben). Protokoll „pf-app“ v1 (postMessage):
   JPad → `{type:"pf-app", action:"ready", app:"jpad", v:1}` (jede Sekunde bis `load`); Prüfung → `load {task, title, files, readonly}`
   (Dateien ersetzen den Inhalt; `info.html` = Aufgabenstellung → Reiter „Aufgabe“ statt „Lernpfad“); JPad → `state {task, files, run?:{output, error}}` nach Änderungen (0,7 s gebündelt, Sicherheitsnetz
   alle 3 s) und nach jedem Programmlauf, nur an die Herkunft der `load`-Meldung; Prüfung → `flush {req}` (sofort `state` mit req),
