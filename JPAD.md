@@ -316,3 +316,20 @@ GNU GPL v3, wie die Online-IDE.
   aus dem früheren HTML-Lernpfad in PathFinder (PathFinder-Design, Palette „Nacht“, Hell/Dunkel wie das Gerät) umgebaut.
   Projekt enthält Hauptprogramm.java und Stern.java. Die Schubladen-Werkstatt (Schritt für Schritt) steckt als kleine Seite
   im HTML-Baustein (iframe srcdoc), weil HTML-Bausteine sonst keine Skripte ausführen.
+
+## Prüfungsfassung für Probe (probe.pandapy.de/jpad/)
+
+In Prüfungen läuft JPad nicht unter jpad.pandapy.de, sondern als **Prüfungsfassung in einem Unterordner von Probe**. So muss
+während der Prüfung nur die Probe-Domain frei sein, und die Projekte, die Schüler unter jpad.pandapy.de gespeichert haben,
+sind dort nicht erreichbar (der Browser trennt den Speicher nach Domain).
+
+- Bauen: `npm run build-jpad-pruefung` → `dist-jpad-pruefung/` (Vite mit `VITE_JPAD_PRUEFUNG=1`, postbuild mit `JPAD_PRUEFUNG=1`):
+  ohne `learn/`, `hilfe/`, `editor/`, `pathfinder/`; mit `PRUEFUNG.txt` und `robots.txt`.
+- Startsperre (`JPadStarter.ts`): Die Prüfungsfassung startet nur mit `?pfapp`, in einem Rahmen und nur, wenn die Seite
+  drumherum von derselben Domain stammt (also Probe selbst). Direkt aufgerufen zeigt sie nur einen Hinweis.
+- Ausspielen: `jpad-pages.yml` baut sie mit (Artefakt `j-pad-pruefung`), `jpad-webspace.yml` überträgt sie aus demselben
+  getesteten Lauf nach `PROBE_FTP_DIR` (Secret: Probe-Ordner + `/jpad/`, mit Schrägstrich am Ende; optional eigener
+  FTP-Zugang `PROBE_FTP_SERVER`, `PROBE_FTP_USERNAME`, `PROBE_FTP_PASSWORD`).
+- Probe öffnet Programmier-Aufgaben standardmäßig unter `jpad/` (api.php, `APPS_DEFAULT`).
+- Dasselbe Muster gilt für weitere Prüfungs-Apps (FlowPad, QPad, wEOS): eigener Unterordner von Probe.
+

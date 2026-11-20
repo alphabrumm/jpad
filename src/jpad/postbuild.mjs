@@ -1,7 +1,9 @@
 // Nach dem Build: Startseite, Server-Einstellungen, Aufräumen
 import { copyFileSync, writeFileSync, rmSync, readdirSync, existsSync, readFileSync, cpSync } from "fs";
 
-const out = "dist-jpad";
+// Ausgabeordner: dist-jpad (normal) oder z. B. dist-jpad-pruefung (JPAD_OUT); JPAD_PRUEFUNG=1 → Prüfungsfassung für Probe
+const out = process.env.JPAD_OUT || "dist-jpad";
+const PRUEFUNG = process.env.JPAD_PRUEFUNG === "1";
 copyFileSync(`${out}/jpad.html`, `${out}/index.html`);
 
 // Lernpfad-Editor PathFinder (Git-Submodul vendor/pathfinder): Kern, Schriften und Symbol nach dist-jpad/pathfinder/
@@ -99,4 +101,14 @@ writeFileSync(`${out}/learn/index.json`, JSON.stringify(index, null, 1));
 console.log("JCodes:", Object.entries(codes).map(([c, f]) => `${c} ${f}`).join(", "));
 
 for (const f of ["maintenance", "includeIDE.js"]) rmSync(`${out}/${f}`, { recursive: true, force: true });
-console.log("JPad: dist-jpad ist fertig zum Hochladen.");
+
+/*
+ * Prüfungsfassung (läuft in Probe unter probe.pandapy.de/jpad/, startet nur in einer Probe-Prüfung – siehe JPadStarter.ts):
+ * ohne Lernpfade, Projekte, JCodes, Cheat Sheet und Lernpfad-Editor – nichts davon darf in einer Prüfung erreichbar sein.
+ */
+if (PRUEFUNG) {
+    for (const f of ["learn", "hilfe", "editor", "pathfinder"]) rmSync(`${out}/${f}`, { recursive: true, force: true });
+    writeFileSync(`${out}/PRUEFUNG.txt`, "JPad – Prüfungsfassung für Probe. Startet nur innerhalb einer Probe-Prüfung derselben Domain.\n");
+    writeFileSync(`${out}/robots.txt`, "User-agent: *\nDisallow: /\n");
+}
+console.log(`JPad: ${out}${PRUEFUNG ? " (Prüfungsfassung)" : ""} ist fertig zum Hochladen.`);

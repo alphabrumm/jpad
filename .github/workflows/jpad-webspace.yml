@@ -8,6 +8,11 @@ name: JPad auf den Webspace (jpad.pandapy.de)
 # also Byte für Byte das, was auf alphabrumm.github.io/jpad getestet wurde.
 #
 # Benötigt die Repository-Secrets FTP_SERVER, FTP_USERNAME, FTP_PASSWORD, FTP_DIR.
+#
+# Zusätzlich: Prüfungsfassung von JPad in den Ordner von Probe (probe.pandapy.de/jpad/) – Programmier-Aufgaben in
+# Prüfungen laufen dort, damit während der Prüfung nur die Probe-Domain frei sein muss.
+#   Secret PROBE_FTP_DIR = Ordner von Probe auf dem Webspace + /jpad (z. B. /probe.pandapy.de/jpad)
+#   optional PROBE_FTP_SERVER, PROBE_FTP_USERNAME, PROBE_FTP_PASSWORD, falls Probe auf einem anderen FTP-Zugang liegt
 on:
   workflow_dispatch:
   push:
@@ -34,6 +39,7 @@ jobs:
             exit 1
           fi
       - name: Getestetes Paket von GitHub Pages holen
+        id: pages
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -55,6 +61,7 @@ jobs:
           echo "$INFO" >> "$GITHUB_STEP_SUMMARY"
           gh run download "$RUN" -R "$REPO" -n j-pad-webspace -D dist-jpad
           test -f dist-jpad/jpad.html
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
       # Übertragen werden nur geänderte Dateien (Merkdatei .ftp-deploy-sync-state.json im Zielordner).
       - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -63,5 +70,34 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_DIR }}
           local-dir: ./dist-jpad/
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          log-level: standard
+      # ---- Prüfungsfassung für Probe (probe.pandapy.de/jpad/), aus demselben getesteten Pages-Lauf ----
+      - name: Prüfungsfassung für Probe holen
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ steps.pages.outputs.run }}
+          PD: ${{ secrets.PROBE_FTP_DIR }}
+        run: |
+          if [ -z "$PD" ]; then
+            echo "::warning::Secret PROBE_FTP_DIR fehlt – die Prüfungsfassung für Probe (probe.pandapy.de/jpad/) wird nicht übertragen."
+            echo "go=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if ! gh run download "$RUN" -R "$REPO" -n j-pad-pruefung -D dist-jpad-pruefung; then
+            echo "::error::Im Pages-Lauf $RUN fehlt die Prüfungsfassung (j-pad-pruefung) – erst „JPad bauen und veröffentlichen“ neu laufen lassen."; exit 1
+          fi
+          test -f dist-jpad-pruefung/jpad.html && test -f dist-jpad-pruefung/PRUEFUNG.txt
+          echo "go=1" >> "$GITHUB_OUTPUT"
+          echo "### Prüfungsfassung → Probe /jpad/" >> "$GITHUB_STEP_SUMMARY"
+      - if: steps.probe.outputs.go == '1'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.PROBE_FTP_SERVER || secrets.FTP_SERVER }}
+          username: ${{ secrets.PROBE_FTP_USERNAME || secrets.FTP_USERNAME }}
+          password: ${{ secrets.PROBE_FTP_PASSWORD || secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.PROBE_FTP_DIR }}
+          local-dir: ./dist-jpad-pruefung/
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
           log-level: standard

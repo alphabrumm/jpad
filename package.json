@@ -16,7 +16,8 @@
     "test": "vitest --config vitest.config.ts",
     "deploy": "node src/development/ZipAndUpload.js",
     "dev-jpad": "vite --port 3000 --host --config vite.config-jpad.ts",
-    "build-jpad": "vite build --config vite.config-jpad.ts && node src/jpad/postbuild.mjs"
+    "build-jpad": "vite build --config vite.config-jpad.ts && node src/jpad/postbuild.mjs",
+    "build-jpad-pruefung": "VITE_JPAD_PRUEFUNG=1 vite build --config vite.config-jpad.ts --outDir dist-jpad-pruefung && JPAD_OUT=dist-jpad-pruefung JPAD_PRUEFUNG=1 node src/jpad/postbuild.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",

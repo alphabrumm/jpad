@@ -21,6 +21,10 @@ jobs:
         with: { node-version: 22 }
       - run: npm install --no-audit --no-fund
       - run: npm run build-jpad
+      # Prüfungsfassung für Probe (probe.pandapy.de/jpad/): ohne Lernpfade, Cheat Sheet und Editor; startet nur in einer Probe-Prüfung
+      - run: npm run build-jpad-pruefung
+      - uses: actions/upload-artifact@v4
+        with: { name: j-pad-pruefung, path: dist-jpad-pruefung, include-hidden-files: true, retention-days: 30 }
       # Zum Herunterladen für den eigenen Webspace
       - uses: actions/upload-artifact@v4
         with: { name: j-pad-webspace, path: dist-jpad, include-hidden-files: true, retention-days: 30 }

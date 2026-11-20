@@ -54,8 +54,26 @@ self.MonacoEnvironment = {
     getWorker: () => new editorWorker()
 };
 
+/**
+ * Prüfungsfassung (Build mit VITE_JPAD_PRUEFUNG=1, liegt in Probe unter /jpad/): läuft nur als Programmier-Aufgabe
+ * in einer Probe-Prüfung – also mit ?pfapp, in einem Rahmen, und nur, wenn die Seite drumherum von derselben Domain
+ * stammt. Direkt im Browser aufgerufen startet sie nicht: Schüler sollen sie während der Prüfung nicht als
+ * eigene Programmierumgebung (oder für mitgebrachte Projekte) nutzen können.
+ */
+const PRUEFUNG = import.meta.env.VITE_JPAD_PRUEFUNG === "1";
+function pruefungErlaubt(): boolean {
+    if (!new URLSearchParams(location.search).has("pfapp") || window.self === window.top) return false;
+    try { return window.parent.location.origin === location.origin; } catch (e) { return false; }
+}
+
 async function boot() {
     const root = document.getElementById("jpad-app")!;
+    if (PRUEFUNG && !pruefungErlaubt()) {
+        root.removeAttribute("aria-busy");
+        root.innerHTML = `<div class="jp-fatal"><h1>JPad – Prüfungsfassung</h1>
+            <p>Diese Fassung von JPad öffnet sich nur innerhalb einer Prüfung in Probe – über die Programmier-Aufgabe der Prüfung.</p></div>`;
+        return;
+    }
     // Notbremse: JPad wurde in einem abgeschotteten Lernpfad-Rahmen geladen (z. B. über einen Link im Lernpfad)
     if (window.self !== window.top && location.origin == "null") {
         root.removeAttribute("aria-busy");
