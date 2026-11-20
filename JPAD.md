@@ -48,7 +48,7 @@ Bedienung und Gestaltung.
   verstecktes Arbeitsprojekt (Quelle „pfapp“, nie in der Projektliste, nie das aktuelle Projekt außerhalb der Prüfung), blendet
   Projekte, Datei öffnen/sichern, JCode, Lernpfade und eigene Sprites aus. Protokoll „pf-app“ v1 (postMessage):
   JPad → `{type:"pf-app", action:"ready", app:"jpad", v:1}` (jede Sekunde bis `load`); Prüfung → `load {task, title, files, readonly}`
-  (Dateien ersetzen den Inhalt); JPad → `state {task, files, run?:{output, error}}` nach Änderungen (0,7 s gebündelt, Sicherheitsnetz
+  (Dateien ersetzen den Inhalt; `info.html` = Aufgabenstellung → Reiter „Aufgabe“ statt „Lernpfad“); JPad → `state {task, files, run?:{output, error}}` nach Änderungen (0,7 s gebündelt, Sicherheitsnetz
   alle 3 s) und nach jedem Programmlauf, nur an die Herkunft der `load`-Meldung; Prüfung → `flush {req}` (sofort `state` mit req),
   `stop` (Programm anhalten). `readonly`: ausführen ja, melden nein (Lehrkraft bei der Korrektur). Code: `App.ts`, Abschnitt
   „Prüfungsmodus“; Gegenstück: PathFinder `core/pfapp.js`, Anleitung `vendor/pathfinder/docs/APP-AUFGABEN.md`.

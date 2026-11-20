@@ -1545,7 +1545,7 @@ export class App {
             frame.setAttribute("allow", "clipboard-write; fullscreen");
             frame.srcdoc = this.withStorageShim(html);
             host.appendChild(frame);
-            if (this.isTeacher) {
+            if (this.isTeacher && !this.pfApp) {
                 // schwebender gelber Stift: den geöffneten Lernpfad bearbeiten (nur Lehrkraft)
                 const b = document.createElement("button");
                 b.className = "jp-lp-edit-fab"; b.title = "Lernpfad bearbeiten (nur Lehrkraft)"; b.setAttribute("aria-label", "Lernpfad bearbeiten");
@@ -1796,7 +1796,8 @@ export class App {
     // Prüfungsmodus (?pfapp): JPad als Werkzeug einer App-Aufgabe in Probe/PathFinder.
     // Protokoll „pf-app“ (siehe JPAD.md und PathFinder core/pfapp.js):
     //   JPad → Prüfung  {type:"pf-app", action:"ready", app:"jpad", v:1}  (jede Sekunde, bis „load“ kommt)
-    //   Prüfung → JPad  {action:"load", task, title, files:[{name,text}], readonly}
+    //   Prüfung → JPad  {action:"load", task, title, files:[{name,text}], readonly, info?:{html}}
+    //                   info.html = Aufgabenstellung als HTML-Seite → Reiter „Aufgabe“ (statt „Lernpfad“)
     //   JPad → Prüfung  {action:"state", task, files, run?:{output,error}}  nach Änderungen und nach jedem Programmlauf
     //   Prüfung → JPad  {action:"flush", req} → sofort „state“ mit req · {action:"stop"} → Programm anhalten
     // =====================================================================
@@ -1809,6 +1810,12 @@ export class App {
         this.root.querySelectorAll(".jp-drawer-body > h2").forEach(h => { if (h.textContent == "Projekte") h.remove(); });
         this.root.querySelectorAll(".jp-drawer-body .jp-menu-actions").forEach(g => { if (!g.querySelector("button")) g.remove(); });
         this.el.projectBtn.setAttribute("disabled", "");
+        // Der Lernpfad-Reiter zeigt hier die Aufgabenstellung der Prüfung
+        this.root.querySelectorAll<HTMLElement>(".jp-lernpfad-tab").forEach(t => {
+            t.dataset.tip = "Aufgabe: die Aufgabenstellung aus der Prüfung";
+            if (t.hasAttribute("title")) { t.title = "Aufgabe"; t.setAttribute("aria-label", "Aufgabe"); }
+            const s = t.querySelector("span"); if (s) s.textContent = "Aufgabe";
+        });
         window.addEventListener("message", ev => this.onPfMessage(ev));
         this.onProgramEnd = (output, error) => { if (this.pfTask != null) this.pfSend({ run: { output, error } }); };
         const ready = () => { try { window.parent.postMessage({ type: "pf-app", action: "ready", app: "jpad", v: 1 }, "*"); } catch (e) { } };
@@ -1892,6 +1899,10 @@ export class App {
             this.renderFileTabs();
             this.renderProjectTitle();
             this.setView("code");
+            // Aufgabenstellung im Reiter „Aufgabe“ (nicht gespeichert, kommt bei jedem Öffnen neu von der Prüfung)
+            const info = d.info && typeof d.info.html == "string" && d.info.html.length < 4e6 ? d.info.html : null;
+            this.showLernpfad(info);
+            if (info) this.setSideView("lernpfad");
             this.pfLast = JSON.stringify(this.pfFiles());
         } finally {
             setTimeout(() => { this.pfLoading = false; }, 300);
